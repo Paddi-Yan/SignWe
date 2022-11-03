@@ -4,12 +4,16 @@
 
     <!-- 通用查询映射结果 -->
     <resultMap id="BaseResultMap" type="com.turing.entity.Ranking">
-        <id column="id" property="id" />
-        <result column="name" property="name" />
-        <result column="final_chair" property="finalChair" />
-        <result column="count" property="count" />
-        <result column="total_time" property="totalTime" />
-        <result column="status" property="status" />
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="final_chair" property="finalChair"/>
+        <result column="count" property="count"/>
+        <result column="total_time" property="totalTime"/>
+        <result column="status" property="status"/>
     </resultMap>
+
+    <select id="getRanking" resultType="com.turing.entity.Ranking">
+        select * from sys_ranking order by total_time;
+    </select>
 
 </mapper>

@@ -4,10 +4,10 @@
 
     <!-- 通用查询映射结果 -->
     <resultMap id="BaseResultMap" type="com.turing.entity.Chairs">
-        <id column="id" property="id" />
-        <result column="last_used_name" property="lastUsedName" />
-        <result column="is_empty" property="empty" />
-        <result column="open_id" property="openId" />
+        <id column="id" property="id"/>
+        <result column="last_used_name" property="lastUsedName"/>
+        <result column="is_empty" property="isEmpty"/>
+        <result column="open_id" property="openId"/>
     </resultMap>
 
 </mapper>

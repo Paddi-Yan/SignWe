@@ -1,7 +1,9 @@
 package com.turing.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
+
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Getter;
@@ -9,7 +11,7 @@ import lombok.Setter;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author Paddi-Yan
@@ -22,6 +24,9 @@ import lombok.Setter;
 public class Notice implements Serializable {
 
     private static final long serialVersionUID = 1L;
+
+    @ApiModelProperty(hidden = true)
+    private String id;
 
     private String content;
 

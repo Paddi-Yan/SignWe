@@ -10,31 +10,32 @@ import com.baomidou.mybatisplus.generator.config.OutputFile;
 import java.util.Collections;
 
 /**
- * @Author: 又蠢又笨的懒羊羊程序猿
- * @CreateTime: 2022年05月18日 18:59:04
+ * @Project: SignWe
+ * @Author: Paddi-Yan
+ * @CreatedTime: 2022年10月29日 16:58:15
  */
 public class MybatisPlusGenerator {
     public static void main(String[] args) {
         String property = System.getProperty("user.dir");
         System.out.println(property);
-        FastAutoGenerator.create("jdbc:mysql://119.23.54.229:3306/wx_mini_db?useUnicode=true&characterEncoding=utf-8&useSSL=false", "root", "123456")
+        FastAutoGenerator.create("jdbc:mysql://localhost:3306/sign_we?useUnicode=true&characterEncoding=utf-8&useSSL=false", "root", "123456")
                          .globalConfig(builder -> {
-                             builder.author("qds") // 设置作者
+                             builder.author("Paddi-Yan") // 设置作者
                                     .enableSwagger() // 开启 swagger 模式
                                     .fileOverride() // 覆盖已生成文件
-                                    .outputDir("I:\\ProjectAll\\兴农之桥\\xnzq\\src\\main\\java\\com\\turing\\qds"); // 指定输出目录
+                                    .outputDir("E:\\IntelliJ-IDEA-WorkPlace\\SignWe\\src\\main\\java"); // 指定输出目录
                          })
                          .packageConfig(builder -> {
                              builder.parent("com") // 设置父包名
                                     .moduleName("turing") // 设置父包模块名
-                                    .pathInfo(Collections.singletonMap(OutputFile.mapperXml,"I:\\ProjectAll\\兴农之桥\\xnzq\\src\\main\\java\\com\\turing\\qds")); // 设置mapperXml生成路径
+                                    .pathInfo(Collections.singletonMap(OutputFile.mapperXml, "E:\\IntelliJ-IDEA-WorkPlace\\SignWe\\src\\main\\resources")); // 设置mapperXml生成路径
                          })
                          .strategyConfig(builder -> {
-                             builder.addInclude("sys_element","sys_machine","sys_picture") // 设置需要生成的表名
+                             builder.addInclude("sys_chairs", "sys_door", "sys_notice", "sys_ranking", "sys_record", "sys_user", "sys_yesterday_record") // 设置需要生成的表名
                                     .addTablePrefix("sys_"); // 设置过滤表前缀
                              builder.entityBuilder()
-                                    .enableLombok()
-                                    .idType(IdType.ASSIGN_ID);
+                                    .enableRemoveIsPrefix()
+                                    .enableLombok();
                              builder.controllerBuilder()
                                     .enableRestStyle()
                                     .formatFileName("%sController");

@@ -1,15 +1,22 @@
 package com.turing.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
+import java.time.LocalDateTime;
+
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author Paddi-Yan
@@ -19,17 +26,25 @@ import lombok.Setter;
 @Setter
 @TableName("sys_door")
 @ApiModel(value = "Door对象", description = "")
+@ToString
+@AllArgsConstructor
+@NoArgsConstructor
 public class Door implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private Boolean isOpen;
+    @TableField("is_open")
+    private Boolean open;
 
     private String closeInfo;
 
     private String openInfo;
 
-    private String id;
+    @JsonDeserialize(using = LocalDateTimeDeserializer.class)
+    @JsonSerialize(using = LocalDateTimeSerializer.class)
+    private LocalDateTime openTime;
+
+    private String id = "TuringTeam";
 
 
 }

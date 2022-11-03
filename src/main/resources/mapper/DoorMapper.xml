@@ -4,10 +4,11 @@
 
     <!-- 通用查询映射结果 -->
     <resultMap id="BaseResultMap" type="com.turing.entity.Door">
-        <id column="id" property="id" />
-        <result column="is_open" property="open" />
-        <result column="close_info" property="closeInfo" />
-        <result column="open_info" property="openInfo" />
+        <id column="id" property="id"/>
+        <result column="is_open" property="open"/>
+        <result column="close_info" property="closeInfo"/>
+        <result column="open_info" property="openInfo"/>
+        <result column="open_time" property="openTime"/>
     </resultMap>
 
 </mapper>

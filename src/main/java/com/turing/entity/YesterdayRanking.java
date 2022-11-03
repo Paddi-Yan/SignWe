@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import java.io.Serializable;
 
 import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -19,9 +18,9 @@ import lombok.Setter;
  */
 @Getter
 @Setter
-@TableName("sys_yesterday_record")
-@ApiModel(value = "YesterdayRecord对象", description = "")
-public class YesterdayRecord implements Serializable {
+@TableName("sys_yesterday_ranking")
+@ApiModel(value = "YesterdayRanking对象", description = "")
+public class YesterdayRanking implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

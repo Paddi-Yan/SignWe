@@ -1,15 +1,19 @@
 package com.turing.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
+
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author Paddi-Yan
@@ -19,6 +23,8 @@ import lombok.Setter;
 @Setter
 @TableName("sys_ranking")
 @ApiModel(value = "Ranking对象", description = "")
+@AllArgsConstructor
+@NoArgsConstructor
 public class Ranking implements Serializable {
 
     private static final long serialVersionUID = 1L;

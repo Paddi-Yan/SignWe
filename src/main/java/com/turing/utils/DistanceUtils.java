@@ -1,12 +1,17 @@
-package com.turing.signwe.utils;
+package com.turing.utils;
 
+/**
+ * @Project: SignWe
+ * @Author: Paddi-Yan
+ * @CreatedTime: 2022年10月29日 16:58:15
+ */
 public final class DistanceUtils {
- 
+
     /**
      * 地球半径,单位 km
      */
     private static final double EARTH_RADIUS = 6378.137;
- 
+
     /**
      * 根据经纬度，计算两点间的距离
      *
@@ -31,7 +36,7 @@ public final class DistanceUtils {
         double s = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(a / 2), 2) +
                 Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin(b / 2), 2)));
         // 弧长乘地球半径, 返回单位: 千米
-        s =  s * EARTH_RADIUS;
+        s = s * EARTH_RADIUS;
         return s;
     }
 

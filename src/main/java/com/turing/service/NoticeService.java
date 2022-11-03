@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 
 /**
  * <p>
- *  服务类
+ * 服务类
  * </p>
  *
  * @author Paddi-Yan
@@ -13,4 +13,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
  */
 public interface NoticeService extends IService<Notice> {
 
+    Notice getNotice();
+
+    Notice updateNotice(Notice notice);
 }

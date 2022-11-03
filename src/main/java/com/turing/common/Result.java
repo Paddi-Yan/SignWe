@@ -1,5 +1,6 @@
 package com.turing.common;
 
+import lombok.Builder;
 import lombok.Data;
 
 /**
@@ -26,6 +27,14 @@ public class Result {
         result.setMessage(HttpStatusCode.SUCCESS.getMessage());
         return result;
     }
+
+    public static Result success(HttpStatusCode httpStatusCode, String message) {
+        Result result = new Result();
+        result.setCode(httpStatusCode.getCode());
+        result.setMessage(message);
+        return result;
+    }
+
 
     public static Result fail(HttpStatusCode httpStatusCode) {
         Result result = new Result();

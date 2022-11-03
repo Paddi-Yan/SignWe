@@ -4,14 +4,18 @@
 
     <!-- 通用查询映射结果 -->
     <resultMap id="BaseResultMap" type="com.turing.entity.Record">
-        <id column="id" property="id" />
-        <result column="chair" property="chair" />
-        <result column="distance" property="distance" />
-        <result column="name" property="name" />
-        <result column="classname" property="classname" />
-        <result column="final_start_time" property="finalStartTime" />
-        <result column="final_stop_time" property="finalStopTime" />
-        <result column="study_time" property="studyTime" />
+        <id column="id" property="id"/>
+        <result column="chair" property="chair"/>
+        <result column="distance" property="distance"/>
+        <result column="name" property="name"/>
+        <result column="classname" property="classname"/>
+        <result column="final_start_time" property="finalStartTime"/>
+        <result column="final_stop_time" property="finalStopTime"/>
+        <result column="study_time" property="studyTime"/>
     </resultMap>
+
+    <select id="getByUser" parameterType="com.turing.entity.User" resultMap="BaseResultMap" resultType="com.turing.entity.Record">
+        select * from sys_record where classname = #{classname} and name = #{name} order by final_stop_time desc;
+    </select>
 
 </mapper>

@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 
 /**
  * <p>
- *  服务类
+ * 服务类
  * </p>
  *
  * @author Paddi-Yan
@@ -13,4 +13,9 @@ import com.baomidou.mybatisplus.extension.service.IService;
  */
 public interface DoorService extends IService<Door> {
 
+    Door getDoorStatus();
+
+    Door openDoor(Door door, String username);
+
+    Door closeDoor(Door door, String username);
 }

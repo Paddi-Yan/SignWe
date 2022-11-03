@@ -5,10 +5,17 @@ package com.turing.common;
  * @CreateTime: 2022年01月20日 01:55:30
  */
 public class RedisKey {
-    public static final String TOKEN = "token_";
-    public static final String Hot = "hot_search";
-    public static final String ORDER_KEY = "order_user_";
-    public static final String ORDER_FIELD = "order_";
-    public static final String MESSAGE_SEND_CONTROL_KEY = "mobile_control_";
-    public static final String MESSAGE_CODE_KEY = "message_send_mobile_";
+    public static final String DOOR_KEY = "door_status";
+    public static final String NOTICE_KEY = "notice";
+
+    public static final String RANKING_HASH_KEY = "ranking_hash";
+    public static final String RANKING_FIELD_KEY = "ranking_user_id_";
+
+    public static final String RANKING_ZSET_KEY = "ranking_zset";
+
+    public static final String YESTERDAY_RANKING_ZSET_KEY = "yesterday_ranking_zset";
+
+    public static final String RECORD_KEY = "user_study_record_";
+
+    public static final String CHAIRS_LIST_KEY = "chairs";
 }

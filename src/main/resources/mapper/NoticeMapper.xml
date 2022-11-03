@@ -4,13 +4,42 @@
 
     <!-- 通用查询映射结果 -->
     <resultMap id="BaseResultMap" type="com.turing.entity.Notice">
-        <result column="content" property="content" />
-        <result column="title" property="title" />
-        <result column="sign_or_time" property="signOrTime" />
-        <result column="banner" property="banner" />
-        <result column="font" property="font" />
-        <result column="background" property="background" />
-        <result column="icon" property="icon" />
+        <result column="id" property="id"/>
+        <result column="content" property="content"/>
+        <result column="title" property="title"/>
+        <result column="sign_or_time" property="signOrTime"/>
+        <result column="banner" property="banner"/>
+        <result column="font" property="font"/>
+        <result column="background" property="background"/>
+        <result column="icon" property="icon"/>
     </resultMap>
+
+    <update id="updateNotice" parameterType="com.turing.entity.Notice">
+        update `sys_notice`
+        <set>
+            <if test="content != null">
+                content = #{content},
+            </if>
+            <if test="title != null">
+                title = #{title},
+            </if>
+            <if test="signOrTime != null">
+                sign_or_time = #{signOrTime},
+            </if>
+            <if test="banner != null">
+                banner = #{banner},
+            </if>
+            <if test="font != null">
+                font = #{font},
+            </if>
+            <if test="background != null">
+                background = #{background},
+            </if>
+            <if test="icon != null">
+                icon = #{icon}
+            </if>
+        </set>
+        where id = "TuringTeamNotice";
+    </update>
 
 </mapper>

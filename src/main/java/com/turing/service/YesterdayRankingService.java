@@ -1,7 +1,10 @@
 package com.turing.service;
 
-import com.turing.entity.YesterdayRecord;
+import com.turing.entity.YesterdayRanking;
 import com.baomidou.mybatisplus.extension.service.IService;
+
+import java.util.List;
+import java.util.Set;
 
 /**
  * <p>
@@ -11,7 +14,9 @@ import com.baomidou.mybatisplus.extension.service.IService;
  * @author Paddi-Yan
  * @since 2022-10-29
  */
-public interface YesterdayRecordService extends IService<YesterdayRecord> {
+public interface YesterdayRankingService extends IService<YesterdayRanking> {
 
     void generateYesterdayRanking();
+
+    Set<YesterdayRanking> getRanking();
 }

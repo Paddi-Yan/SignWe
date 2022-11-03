@@ -3,9 +3,11 @@ package com.turing.service;
 import com.turing.entity.Ranking;
 import com.baomidou.mybatisplus.extension.service.IService;
 
+import java.util.List;
+
 /**
  * <p>
- *  服务类
+ * 服务类
  * </p>
  *
  * @author Paddi-Yan
@@ -13,4 +15,5 @@ import com.baomidou.mybatisplus.extension.service.IService;
  */
 public interface RankingService extends IService<Ranking> {
 
+    List<Ranking> getRanking();
 }
