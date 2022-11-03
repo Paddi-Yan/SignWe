@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.turing.mapper.UserMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.turing.entity.User">
+        <id column="id" property="id" />
+        <result column="openid" property="openid" />
+        <result column="total_time" property="totalTime" />
+        <result column="classname" property="classname" />
+        <result column="today_time" property="todayTime" />
+        <result column="err_sign_out" property="errSignOut" />
+        <result column="final_chair" property="finalChair" />
+        <result column="final_check" property="finalCheck" />
+        <result column="final_distance" property="finalDistance" />
+        <result column="final_start_time" property="finalStartTime" />
+        <result column="register_time" property="registerTime" />
+        <result column="is_admin" property="admin" />
+        <result column="name" property="name" />
+    </resultMap>
+
+</mapper>
