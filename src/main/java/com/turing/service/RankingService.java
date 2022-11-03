@@ -16,4 +16,6 @@ import java.util.List;
 public interface RankingService extends IService<Ranking> {
 
     List<Ranking> getRanking();
+
+    void resetRanking();
 }

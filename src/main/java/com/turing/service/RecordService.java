@@ -20,4 +20,5 @@ public interface RecordService extends IService<Record> {
 
     List<Record> getYesterdayRecord();
 
+    void deleteLogical();
 }

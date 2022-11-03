@@ -55,6 +55,8 @@ public class User implements Serializable {
 
     private Integer todayTime;
 
+    private Integer todayCount;
+
     private Integer errSignOut;
 
     private Integer finalChair;

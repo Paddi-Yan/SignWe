@@ -23,7 +23,7 @@ public class MybatisConfig {
         //添加分页插件
         mybatisPlusInterceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
         //防止全表更新或者删除插件
-        mybatisPlusInterceptor.addInnerInterceptor(new BlockAttackInnerInterceptor());
+        //mybatisPlusInterceptor.addInnerInterceptor(new BlockAttackInnerInterceptor());
         //乐观锁插件
         mybatisPlusInterceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());
         return mybatisPlusInterceptor;

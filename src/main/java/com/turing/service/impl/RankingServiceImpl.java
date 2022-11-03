@@ -3,6 +3,7 @@ package com.turing.service.impl;
 import com.turing.common.RedisKey;
 import com.turing.entity.Ranking;
 import com.turing.mapper.RankingMapper;
+import com.turing.mapper.YesterdayRankingMapper;
 import com.turing.service.RankingService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.dao.DataAccessException;
@@ -10,6 +11,7 @@ import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import sun.security.krb5.internal.KRBCred;
 
 import javax.annotation.Resource;
@@ -34,6 +36,9 @@ public class RankingServiceImpl extends ServiceImpl<RankingMapper, Ranking> impl
     @Resource
     private RankingMapper rankingMapper;
 
+    @Resource
+    private YesterdayRankingMapper yesterdayRankingMapper;
+
     @Override
     public List<Ranking> getRanking() {
         List<Ranking> ranking = new ArrayList<>();
@@ -41,10 +46,9 @@ public class RankingServiceImpl extends ServiceImpl<RankingMapper, Ranking> impl
             @Override
             public Object execute(RedisOperations redisOperations) throws DataAccessException {
                 redisOperations.multi();
-                int size = redisOperations.opsForZSet().size(RedisKey.RANKING_ZSET_KEY).intValue();
-                Set<String> userIdsOfRanking = redisOperations.opsForZSet().range(RedisKey.RANKING_ZSET_KEY, 0, size - 1);
+                Set<String> userIdsOfRanking = redisOperations.opsForZSet().range(RedisKey.RANKING_ZSET_KEY, 0, -1);
                 for(String userId : userIdsOfRanking) {
-                    Ranking entity = (Ranking) redisOperations.opsForHash().get(RedisKey.RANKING_HASH_KEY, userId);
+                    Ranking entity = (Ranking) redisOperations.opsForHash().get(RedisKey.RANKING_HASH_KEY, RedisKey.RANKING_FIELD_KEY+userId);
                     ranking.add(entity);
                 }
                 return redisOperations.exec();
@@ -70,5 +74,21 @@ public class RankingServiceImpl extends ServiceImpl<RankingMapper, Ranking> impl
             }
         });
         return ranking;
+    }
+
+    /**
+     * 清除排名
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void resetRanking() {
+        //Ranking-删除总排名和昨日排名
+        ArrayList<String> deleteKeys = new ArrayList<>();
+        deleteKeys.add(RedisKey.RANKING_HASH_KEY);
+        deleteKeys.add(RedisKey.RANKING_ZSET_KEY);
+        deleteKeys.add(RedisKey.YESTERDAY_RANKING_ZSET_KEY);
+        redisTemplate.delete(deleteKeys);
+        rankingMapper.deleteAll();
+        yesterdayRankingMapper.deleteAll();
     }
 }

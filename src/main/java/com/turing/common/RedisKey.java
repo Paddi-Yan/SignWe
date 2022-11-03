@@ -17,5 +17,11 @@ public class RedisKey {
 
     public static final String RECORD_KEY = "user_study_record_";
 
-    public static final String CHAIRS_LIST_KEY = "chairs";
+    public static final String USER_HASH_KEY = "users";
+
+    public static final String USER_FILED_KEY = "user_openid_";
+
+    public static final String CHAIRS_HASH_KEY = "chairs";
+    public static final String CHAIRS_FIELD_KEY = "chair_id_";
+
 }

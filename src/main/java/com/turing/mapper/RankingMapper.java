@@ -3,6 +3,7 @@ package com.turing.mapper;
 import com.turing.entity.Ranking;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -18,4 +19,7 @@ import java.util.List;
 public interface RankingMapper extends BaseMapper<Ranking> {
 
     List<Ranking> getRanking();
+
+    @Update("truncate table sys_ranking")
+    void deleteAll();
 }

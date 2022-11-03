@@ -83,7 +83,7 @@ public class ScheduledSpringTask {
             if(!chair.getIsEmpty()) {
                 SignOutDto signOutDto = new SignOutDto(chair.getOpenId(), chair.getId());
                 try {
-                    chairsService.signOut(signOutDto,true);
+                    chairsService.signOut(signOutDto);
                 } catch(Exception e) {
                     log.error("签退失败,原因:"+e.getMessage());
                 }
@@ -95,6 +95,8 @@ public class ScheduledSpringTask {
     @Scheduled(cron = "0 0 0 * * ? ")
     public void updateYesterdayRanking() throws InterruptedException {
         log.info("计算昨日学习排行榜定时任务开启....");
+//        user.setTodayTime(0);
+//        user.setTodayCount(0);
         yesterdayRecordService.generateYesterdayRanking();
     }
 

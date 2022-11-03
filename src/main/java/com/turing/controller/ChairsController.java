@@ -88,7 +88,7 @@ public class ChairsController {
     @ApiOperation(value = "签退")
     public Result signOut(@RequestBody SignOutDto signOutDto) {
         try {
-            return Result.success(chairsService.signOut(signOutDto, false));
+            return Result.success(chairsService.signOut(signOutDto));
         } catch(Exception e) {
             return Result.fail(HttpStatusCode.REQUEST_PARAM_ERROR, e.getMessage());
         }

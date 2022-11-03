@@ -18,4 +18,5 @@ public interface UserService extends IService<User> {
     User getByOpenId(String openid);
 
     UserVo register(RegisterDto registerDto);
+
 }

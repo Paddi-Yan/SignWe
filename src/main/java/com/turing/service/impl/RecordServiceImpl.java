@@ -7,6 +7,7 @@ import com.turing.entity.User;
 import com.turing.mapper.RecordMapper;
 import com.turing.service.RecordService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.turing.service.UserService;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -36,17 +37,19 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
     @Resource
     private RedisTemplate redisTemplate;
 
+    @Resource
+    private UserService userService;
+
     @Override
     public List<Record> getRecordByUser(User user) {
-        int size = redisTemplate.opsForList().size(RedisKey.RECORD_KEY + user.getClassname() + user.getName()).intValue();
         List<Record> recordList = redisTemplate.opsForList()
-                                  .range(RedisKey.RECORD_KEY + user.getClassname() + user.getName(), 0, size - 1);
+                                  .range(RedisKey.RECORD_KEY + user.getOpenid(), 0, -1);
         if(recordList != null && !recordList.isEmpty()) {
             return recordList;
         }
         recordList = recordMapper.getByUser(user);
         if(recordList != null && !recordList.isEmpty()) {
-            redisTemplate.opsForList().rightPushAll(RedisKey.RECORD_KEY+user.getClassname()+user.getName(), recordList);
+            redisTemplate.opsForList().rightPushAll(RedisKey.RECORD_KEY+user.getOpenid(), recordList);
         }
         return recordList;
     }
@@ -61,13 +64,10 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
                 redisOperations.multi();
                 Set<String> keys = redisOperations.keys(RedisKey.RECORD_KEY + "*");
                 for(String recordKey : keys) {
-                    int size = redisOperations.opsForList().size(recordKey).intValue();
-                    for(int i = 0; i < size; i++) {
-                        Record record = (Record) redisOperations.opsForList().leftPop(recordKey);
-                        if(record != null) {
-                            finalRecordList.add(record);
-                        }
-                    }
+                    String openid = recordKey.replace(RedisKey.RECORD_KEY, "");
+                    User user = userService.getByOpenId(openid);
+                    List<Record> records = redisOperations.opsForList().range(recordKey, 0, user.getTodayCount() - 1);
+                    finalRecordList.addAll(records);
                 }
                 return redisOperations.exec();
             }
@@ -78,5 +78,13 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
         LocalDateTime yesterdayTime = LocalDateTime.now().minusDays(1);
         recordList = recordMapper.selectList(new QueryWrapper<Record>().ge("final_stop_time", yesterdayTime));
         return recordList;
+    }
+
+    @Override
+    public void deleteLogical() {
+        //删除Redis中的缓存
+        redisTemplate.delete(redisTemplate.keys(RedisKey.RECORD_KEY+"*"));
+        //逻辑删除Mysql中的记录
+        recordMapper.delete(null);
     }
 }

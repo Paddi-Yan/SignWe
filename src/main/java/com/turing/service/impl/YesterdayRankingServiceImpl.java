@@ -46,20 +46,24 @@ public class YesterdayRankingServiceImpl extends ServiceImpl<YesterdayRankingMap
 
     @Override
     public void generateYesterdayRanking() {
+        //生成昨日排行榜之前需要对之前的数据进行清除
+        redisTemplate.delete(RedisKey.YESTERDAY_RANKING_ZSET_KEY);
+        yesterdayRankingMapper.deleteAll();
+        //获取昨天的所有学习记录
         List<Record> recordList = recordService.getYesterdayRecord();
         HashMap<String, Integer> yesterdayRanking = new HashMap<>();
+        log.info("生成昨日学习排行榜中....");
         redisTemplate.execute(new SessionCallback() {
             @Override
             public Object execute(RedisOperations redisOperations) throws DataAccessException {
                 redisOperations.multi();
                 for(Record record : recordList) {
                     redisOperations.opsForZSet().incrementScore(RedisKey.YESTERDAY_RANKING_ZSET_KEY, record.getName(), record.getStudyTime());
-                    yesterdayRanking.put(record.getName(), yesterdayRanking.getOrDefault(record.getName(), 0));
+                    yesterdayRanking.put(record.getName(), yesterdayRanking.getOrDefault(record.getName(), 0) + record.getStudyTime());
                 }
                 return redisOperations.exec();
             }
         });
-        log.info("生成昨日学习排行榜中....");
         for(String name : yesterdayRanking.keySet()) {
             YesterdayRanking entity = new YesterdayRanking();
             entity.setUsername(name);
@@ -71,9 +75,13 @@ public class YesterdayRankingServiceImpl extends ServiceImpl<YesterdayRankingMap
     }
 
     @Override
-    public Set<YesterdayRanking> getRanking() {
-        int size = redisTemplate.opsForZSet().size(RedisKey.YESTERDAY_RANKING_ZSET_KEY).intValue();
-        Set<YesterdayRanking> result = redisTemplate.opsForZSet().range(RedisKey.YESTERDAY_RANKING_ZSET_KEY, 0, size - 1);
-        return result;
+    public HashMap<String, Integer> getRanking() {
+        Set<String> nameList = redisTemplate.opsForZSet().range(RedisKey.YESTERDAY_RANKING_ZSET_KEY, 0, -1);
+        HashMap<String, Integer> ranking = new HashMap<>(nameList.size());
+        for(String name : nameList) {
+            int studyTime = redisTemplate.opsForZSet().score(RedisKey.RANKING_ZSET_KEY, name).intValue();
+            ranking.put(name, studyTime);
+        }
+        return ranking;
     }
 }

@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -49,13 +51,18 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
 
     @Override
     public List<Chairs> getChairsList() {
-        int size = redisTemplate.opsForList().size(RedisKey.CHAIRS_LIST_KEY).intValue();
-        List<Chairs> chairsList = redisTemplate.opsForList().range(RedisKey.CHAIRS_LIST_KEY, 0, size-1);
-        if(chairsList != null && !chairsList.isEmpty()) {
+        List<Chairs> chairsList = redisTemplate.opsForHash().values(RedisKey.CHAIRS_HASH_KEY);
+        if(chairsList != null || !chairsList.isEmpty()) {
+            chairsList.sort(Comparator.comparingInt(Chairs::getId));
             return chairsList;
         }
+
         chairsList = chairsMapper.selectList(null);
-        redisTemplate.opsForList().rightPushAll(RedisKey.CHAIRS_LIST_KEY, chairsList);
+        HashMap<String, Chairs> map = new HashMap<>();
+        for(Chairs chairs : chairsList) {
+            map.put(RedisKey.CHAIRS_FIELD_KEY+chairs.getId(), chairs);
+        }
+        redisTemplate.opsForHash().putAll(RedisKey.CHAIRS_HASH_KEY, map);
         return chairsList;
     }
 
@@ -63,11 +70,11 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
     @Override
     public Chairs getById(Integer id) {
 
-        Chairs chair = (Chairs) redisTemplate.opsForList().index(RedisKey.CHAIRS_LIST_KEY, id-1);
+        Chairs chair = (Chairs) redisTemplate.opsForHash().get(RedisKey.CHAIRS_HASH_KEY, RedisKey.CHAIRS_FIELD_KEY+id);
         if(chair == null) {
             chair = chairsMapper.selectById(id);
             if(chair != null) {
-                redisTemplate.opsForList().set(RedisKey.CHAIRS_LIST_KEY, id-1, chair);
+                redisTemplate.opsForHash().put(RedisKey.CHAIRS_HASH_KEY, RedisKey.CHAIRS_FIELD_KEY+id, chair);
             }
         }
         return chair;
@@ -88,7 +95,7 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
         if(signInResult == 0) {
             throw new Exception("签到占座失败,可能已经被其他人先坐下,请稍后重试或换一个位置签到!");
         }
-        redisTemplate.opsForList().set(RedisKey.CHAIRS_LIST_KEY, chair.getId()-1, chair);
+        redisTemplate.opsForHash().put(RedisKey.CHAIRS_HASH_KEY, RedisKey.CHAIRS_FIELD_KEY+chair.getId(), chair);
         //修改用户签到信息
         user.setFinalChair(chair.getId());
         user.setFinalDistance(signDto.getDistance());
@@ -111,7 +118,7 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
     }
 
     @Override
-    public Chairs signOut(SignOutDto signOutDto, Boolean autoSignOut) throws Exception {
+    public Chairs signOut(SignOutDto signOutDto) throws Exception {
         User user = userMapper.selectOne(new QueryWrapper<User>().eq("openid", signOutDto.getOpenid()));
         Chairs chair = chairsMapper.selectById(signOutDto.getChairId());
         //校验签到状态
@@ -123,12 +130,9 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
         LocalDateTime signInTime = user.getFinalStartTime();
         LocalDateTime signOutTime = LocalDateTime.now();
         Integer studyTime = Math.toIntExact(signInTime.until(signOutTime, ChronoUnit.MINUTES));
-        //如果是自动签到那么将该用户的当天学习时长设置为0  ----->   偷个懒^_^
-        if(autoSignOut == false) {
-            user.setTodayTime(user.getTodayTime() + studyTime);
-        } else {
-            user.setTodayTime(0);
-        }
+        user.setTodayTime(user.getTodayTime() + studyTime);
+        user.setTodayCount(user.getTodayCount() + 1);
+
         user.setTotalTime(user.getTotalTime() + studyTime);
         userMapper.updateById(user);
         //添加学习记录
@@ -144,7 +148,7 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
         if(resultOfInsRecord == 1) {
             log.info("记录学习记录:" + record);
         }
-        redisTemplate.opsForList().rightPush(RedisKey.RECORD_KEY + record.getClassname() + record.getName(), record);
+        redisTemplate.opsForList().leftPush(RedisKey.RECORD_KEY +user.getOpenid(), record);
         //更新总排行榜
         Ranking ranking = (Ranking) redisTemplate.opsForHash()
                                                  .get(RedisKey.RANKING_HASH_KEY, RedisKey.RANKING_FIELD_KEY + user.getId());
@@ -196,7 +200,7 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
 
     private void updateChairStatus(User user, Chairs chair) {
         chair.setIsEmpty(true);
-        redisTemplate.opsForList().set(RedisKey.CHAIRS_LIST_KEY, chair.getId()-1, chair);
+        redisTemplate.opsForHash().put(RedisKey.CHAIRS_HASH_KEY, RedisKey.CHAIRS_FIELD_KEY+chair.getId(), chair);
         int resultOfSignOut = chairsMapper.updateById(chair);
         if(resultOfSignOut == 1) {
             log.info("用户[" + user.getClassname() + user.getName() + "]签退成功!");

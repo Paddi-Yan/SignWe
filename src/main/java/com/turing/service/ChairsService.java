@@ -25,7 +25,7 @@ public interface ChairsService extends IService<Chairs> {
 
     Chairs signIn(Chairs chair, SignDto signDto, User user) throws Exception;
 
-    Chairs signOut(SignOutDto signOutDto, Boolean autoSignOut) throws Exception;
+    Chairs signOut(SignOutDto signOutDto) throws Exception;
 
     Chairs signOutForce(SignOutDto signOutDto) throws Exception;
 }
