@@ -1,4 +1,4 @@
-package com.turing.entity.dto;
+package com.turing.entity.vo;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -16,7 +16,7 @@ import java.io.Serializable;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class SignOutDto implements Serializable {
+public class SignOutVo implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

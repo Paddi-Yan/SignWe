@@ -1,16 +1,17 @@
 package com.turing.controller.admin;
 
+import com.google.common.collect.ImmutableMap;
 import com.turing.common.HttpStatusCode;
 import com.turing.common.Result;
 import com.turing.entity.Notice;
 import com.turing.entity.User;
-import com.turing.entity.dto.SignOutDto;
+import com.turing.entity.vo.SignOutVo;
+import com.turing.exception.AuthenticationException;
 import com.turing.service.*;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
-import javax.security.sasl.AuthenticationException;
 
 /**
  * @Project: SignWe
@@ -37,37 +38,27 @@ public class AdminController {
     @Resource
     private RecordService recordService;
 
-    private void checkAdmin(String openId) throws Exception{
+    private void checkAdmin(String openId) {
         User user = userService.getByOpenId(openId);
         if(user == null || user.getAdmin().booleanValue() == false) {
-            throw new AuthenticationException("非管理员没有权限进行此操作!");
+            throw new AuthenticationException();
         }
     }
 
     @ResponseBody
     @PostMapping("/signOutForce")
     @ApiOperation(value = "强制签退,不记录时长")
-    public Result signOutForce(@RequestBody SignOutDto signOutDto, @RequestParam String adminOpenId) {
+    public Result signOutForce(@RequestBody SignOutVo signOutVo, @RequestParam String adminOpenId) throws Exception {
         //校验管理员身份
-        try {
-            checkAdmin(adminOpenId);
-            return Result.success(chairsService.signOutForce(signOutDto));
-        } catch(AuthenticationException e) {
-            return Result.fail(HttpStatusCode.FORBIDDEN, e.getMessage());
-        } catch(Exception e) {
-            return Result.fail(HttpStatusCode.REQUEST_PARAM_ERROR, e.getMessage());
-        }
+        checkAdmin(adminOpenId);
+        return Result.success(chairsService.signOutForce(signOutVo));
     }
 
     @ResponseBody
     @PostMapping("/updateNotice")
     @ApiOperation("修改公告内容,需要验证是否管理员")
     public Result updateNotice(@RequestParam String openid, @RequestBody Notice notice) {
-        try {
-            checkAdmin(openid);
-        } catch(Exception e) {
-            return Result.fail(HttpStatusCode.FORBIDDEN, e.getMessage());
-        }
+        checkAdmin(openid);
         return Result.success(noticeService.updateNotice(notice));
     }
 
@@ -76,14 +67,8 @@ public class AdminController {
     @PostMapping("/resetRanking")
     @ApiOperation("重置排名")
     public Result resetRanking(@RequestParam String openid) {
-        try {
-            checkAdmin(openid);
-            rankingService.resetRanking();
-        } catch(AuthenticationException e) {
-            return Result.fail(HttpStatusCode.FORBIDDEN, e.getMessage());
-        } catch(Exception e) {
-            return Result.fail(HttpStatusCode.ERROR, e.getMessage());
-        }
+        checkAdmin(openid);
+        rankingService.resetRanking();
         return Result.success();
     }
 
@@ -91,15 +76,9 @@ public class AdminController {
     @PostMapping("/resetRankingAndRecord")
     @ApiOperation("重置排名以及逻辑删除学习记录")
     public Result resetRankingAndRecord(@RequestParam String openid) {
-        try {
-            checkAdmin(openid);
-            rankingService.resetRanking();
-            recordService.deleteLogical();
-        } catch(AuthenticationException e) {
-            return Result.fail(HttpStatusCode.FORBIDDEN, e.getMessage());
-        } catch(Exception e) {
-            return Result.fail(HttpStatusCode.ERROR, e.getMessage());
-        }
+        checkAdmin(openid);
+        rankingService.resetRanking();
+        recordService.deleteLogical();
         return Result.success();
     }
 

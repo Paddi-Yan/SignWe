@@ -2,7 +2,6 @@ package com.turing.service;
 
 import com.turing.entity.Record;
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.turing.entity.User;
 
 import java.util.List;
 
@@ -16,7 +15,7 @@ import java.util.List;
  */
 public interface RecordService extends IService<Record> {
 
-    List<Record> getRecordByUser(User user);
+    List<Record> getRecordByUser(String id);
 
     List<Record> getYesterdayRecord();
 

@@ -1,4 +1,4 @@
-package com.turing.entity.dto;
+package com.turing.entity.vo;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -12,7 +12,7 @@ import java.io.Serializable;
  */
 @Getter
 @Setter
-public class SignDto implements Serializable {
+public class SignVo implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private String openid;

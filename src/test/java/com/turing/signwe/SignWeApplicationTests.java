@@ -1,29 +1,33 @@
 package com.turing.signwe;
 
+import com.baomidou.mybatisplus.core.assist.ISqlRunner;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.turing.common.RedisKey;
 import com.turing.entity.Chairs;
 import com.turing.entity.Record;
 import com.turing.entity.User;
+import com.turing.entity.YesterdayRanking;
 import com.turing.mapper.ChairsMapper;
 import com.turing.mapper.RecordMapper;
 import com.turing.mapper.UserMapper;
+import com.turing.mapper.YesterdayRankingMapper;
 import com.turing.service.ChairsService;
 import com.turing.service.RecordService;
 import com.turing.service.UserService;
+import com.turing.service.YesterdayRankingService;
 import io.swagger.models.auth.In;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SessionCallback;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @SpringBootTest
 class SignWeApplicationTests {
@@ -31,6 +35,8 @@ class SignWeApplicationTests {
 
     @Resource
     private UserMapper userMapper;
+    @Resource
+    private YesterdayRankingMapper yesterdayRankingMapper;
 
     @Test
     void contextLoads() {
@@ -52,10 +58,7 @@ class SignWeApplicationTests {
 
     @Test
     void getRecordListTest() {
-        User user = new User();
-        user.setClassname("电子1201");
-        user.setName("颜昭琰");
-        recordService.getRecordByUser(user).forEach(System.out :: println);
+
     }
 
     @Resource
@@ -112,9 +115,23 @@ class SignWeApplicationTests {
     private RecordMapper recordMapper;
     @Test
     void selectRecordTest() {
-        for(Record record : recordService.getRecordByUser(userService.getByOpenId("o8Mur5ZcwFb5R2GBesmKqeQXJD1w"))) {
-            System.out.println(record);
-        }
+        redisTemplate.execute(new SessionCallback() {
+            @Override
+            public Object execute(RedisOperations redisOperations) throws DataAccessException {
+                Set range = redisOperations.opsForZSet().range(RedisKey.RANKING_ZSET_KEY, 0, -1);
+                range.forEach(System.out :: println);
+                redisOperations.multi();
+                return redisOperations.exec();
+            }
+        });
+    }
+
+    @Resource
+    private YesterdayRankingService yesterdayRankingService;
+    @Test
+    void generateYesterdayRankingTest() {
+        List<YesterdayRanking> rankings = yesterdayRankingMapper.selectList(new QueryWrapper<YesterdayRanking>().orderByDesc("study_time"));
+        rankings.forEach(System.out :: println);
     }
 
 }

@@ -4,8 +4,8 @@ package com.turing.controller;
 import com.turing.common.HttpStatusCode;
 import com.turing.common.Result;
 import com.turing.entity.User;
-import com.turing.entity.dto.RegisterDto;
-import com.turing.entity.vo.UserVo;
+import com.turing.entity.vo.RegisterVo;
+import com.turing.entity.dto.UserDto;
 import com.turing.service.UserService;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.web.bind.annotation.*;
@@ -38,15 +38,15 @@ public class UserController {
     @PostMapping("/register")
     @ApiOperation(value = "登记信息", notes = "对应云函数-newOne")
     @ResponseBody
-    public Result register(@RequestBody RegisterDto registerDto) {
-        String openid = registerDto.getOpenid();
+    public Result register(@RequestBody RegisterVo registerVo) {
+        String openid = registerVo.getOpenid();
         User user = userService.getByOpenId(openid);
-        UserVo userVo = new UserVo();
-        userVo.transform(user);
-        if(!userVo.getIsNewGuys().booleanValue()) {
+        UserDto userDto = new UserDto();
+        userDto.transform(user);
+        if(!userDto.getIsNewGuys().booleanValue()) {
             return Result.success(HttpStatusCode.NO_CONTENT, "该用户已经存在,请勿重复登记,如需更改信息,请联系管理员");
         }
-        return Result.success(userService.register(registerDto));
+        return Result.success(userService.register(registerVo));
     }
 }
 

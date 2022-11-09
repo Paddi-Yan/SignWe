@@ -1,5 +1,6 @@
 package com.turing.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.turing.common.RedisKey;
 import com.turing.entity.Record;
 import com.turing.entity.YesterdayRanking;
@@ -16,9 +17,7 @@ import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * <p>
@@ -34,9 +33,6 @@ public class YesterdayRankingServiceImpl extends ServiceImpl<YesterdayRankingMap
 
     @Resource
     private RecordService recordService;
-
-    @Resource
-    private RecordMapper recordMapper;
 
     @Resource
     private RedisTemplate redisTemplate;
@@ -75,13 +71,28 @@ public class YesterdayRankingServiceImpl extends ServiceImpl<YesterdayRankingMap
     }
 
     @Override
-    public HashMap<String, Integer> getRanking() {
+    public LinkedList<YesterdayRanking> getRanking() {
         Set<String> nameList = redisTemplate.opsForZSet().range(RedisKey.YESTERDAY_RANKING_ZSET_KEY, 0, -1);
-        HashMap<String, Integer> ranking = new HashMap<>(nameList.size());
+        LinkedList<YesterdayRanking> result = new LinkedList<>();
         for(String name : nameList) {
-            int studyTime = redisTemplate.opsForZSet().score(RedisKey.RANKING_ZSET_KEY, name).intValue();
-            ranking.put(name, studyTime);
+            int studyTime = redisTemplate.opsForZSet().score(RedisKey.YESTERDAY_RANKING_ZSET_KEY, name).intValue();
+            YesterdayRanking yesterdayRanking = new YesterdayRanking(studyTime, name);
+            result.addFirst(yesterdayRanking);
         }
-        return ranking;
+        if(result.isEmpty()) {
+            List<YesterdayRanking> rankings = yesterdayRankingMapper.selectList(new QueryWrapper<YesterdayRanking>().orderByDesc("study_time"));
+            result.addAll(rankings);
+            redisTemplate.execute(new SessionCallback() {
+                @Override
+                public Object execute(RedisOperations redisOperations) throws DataAccessException {
+                    redisOperations.multi();
+                    for(YesterdayRanking ranking : rankings) {
+                        redisOperations.opsForZSet().add(RedisKey.YESTERDAY_RANKING_ZSET_KEY, ranking.getUsername(), ranking.getStudyTime());
+                    }
+                    return redisOperations.exec();
+                }
+            });
+        }
+        return result;
     }
 }

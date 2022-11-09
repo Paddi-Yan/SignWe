@@ -1,11 +1,7 @@
 package com.turing.controller;
 
 
-import com.turing.common.HttpStatusCode;
 import com.turing.common.Result;
-import com.turing.entity.Notice;
-import com.turing.entity.User;
-import com.turing.entity.vo.UserVo;
 import com.turing.service.NoticeService;
 import com.turing.service.UserService;
 import io.swagger.annotations.ApiOperation;

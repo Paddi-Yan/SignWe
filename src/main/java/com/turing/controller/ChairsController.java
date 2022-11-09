@@ -1,18 +1,19 @@
 package com.turing.controller;
 
 
+import com.google.common.collect.ImmutableMap;
 import com.turing.common.HttpStatusCode;
 import com.turing.common.Result;
 import com.turing.entity.Chairs;
 import com.turing.entity.Door;
 import com.turing.entity.User;
-import com.turing.entity.dto.SignOutDto;
-import com.turing.entity.dto.SignDto;
+import com.turing.entity.vo.SignOutVo;
+import com.turing.entity.vo.SignVo;
+import com.turing.exception.RequestParamValidationException;
+import com.turing.exception.ResourceNotFoundException;
 import com.turing.service.ChairsService;
 import com.turing.service.DoorService;
 import com.turing.service.UserService;
-import io.swagger.annotations.ApiImplicitParam;
-import io.swagger.annotations.ApiImplicitParams;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.web.bind.annotation.*;
 
@@ -52,7 +53,7 @@ public class ChairsController {
     public Result getByChairId(@PathVariable Integer id) {
         Chairs chair = chairsService.getById(id);
         if(chair == null) {
-            return Result.fail(HttpStatusCode.REQUEST_PARAM_ERROR, "当前桌号不存在,查询失败!");
+            throw new ResourceNotFoundException(ImmutableMap.of("chairId",id));
         }
         return Result.success(chair);
     }
@@ -60,38 +61,15 @@ public class ChairsController {
     @ResponseBody
     @PostMapping("/signIn")
     @ApiOperation(value = "签到")
-    public Result signIn(@RequestBody SignDto signDto) {
-        Door door = doorService.getDoorStatus();
-        if(!door.getOpen()) {
-            return Result.success(HttpStatusCode.Accepted, "请先开门再入座!");
-        }
-        User user = userService.getByOpenId(signDto.getOpenid());
-        if(user == null) {
-            return Result.fail(HttpStatusCode.UNAUTHORIZED, "未登记信息,请登记信息后重试!");
-        }
-        if(User.SIGN_IN.equals(user.getStatus())) {
-            return Result.fail(HttpStatusCode.NO_CONTENT, "已在其他位置签到,无法进行该操作,如有问题请联系管理员!");
-        }
-        Chairs chair = chairsService.getById(signDto.getChairId());
-        if(chair == null || !chair.getIsEmpty()) {
-            return Result.fail(HttpStatusCode.REQUEST_PARAM_ERROR, "座位信息有误或座位已经被其他人占下!");
-        }
-        try {
-            return Result.success(chairsService.signIn(chair, signDto, user));
-        } catch(Exception e) {
-            return Result.fail(HttpStatusCode.Accepted, e.getMessage());
-        }
+    public Result signIn(@RequestBody SignVo signVo) throws Exception {
+        return Result.success(chairsService.signIn(signVo));
     }
 
     @ResponseBody
     @PostMapping("/signOut")
     @ApiOperation(value = "签退")
-    public Result signOut(@RequestBody SignOutDto signOutDto) {
-        try {
-            return Result.success(chairsService.signOut(signOutDto));
-        } catch(Exception e) {
-            return Result.fail(HttpStatusCode.REQUEST_PARAM_ERROR, e.getMessage());
-        }
+    public Result signOut(@RequestBody SignOutVo signOutVo) throws Exception {
+        return Result.success(chairsService.signOut(signOutVo));
     }
 
 }

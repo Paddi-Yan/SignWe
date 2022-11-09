@@ -3,7 +3,7 @@ package com.turing.service;
 import com.turing.entity.YesterdayRanking;
 import com.baomidou.mybatisplus.extension.service.IService;
 
-import java.util.HashMap;
+import java.util.List;
 
 /**
  * <p>
@@ -17,5 +17,5 @@ public interface YesterdayRankingService extends IService<YesterdayRanking> {
 
     void generateYesterdayRanking();
 
-    HashMap<String, Integer> getRanking();
+    List<YesterdayRanking> getRanking();
 }

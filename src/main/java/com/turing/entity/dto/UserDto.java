@@ -1,4 +1,4 @@
-package com.turing.entity.vo;
+package com.turing.entity.dto;
 
 import com.turing.entity.User;
 import lombok.Getter;
@@ -14,7 +14,7 @@ import java.io.Serializable;
  */
 @Getter
 @Setter
-public class UserVo extends User implements Serializable {
+public class UserDto extends User implements Serializable {
     private static final long serialVersionUID = 1L;
     private Boolean isNewGuys;
 

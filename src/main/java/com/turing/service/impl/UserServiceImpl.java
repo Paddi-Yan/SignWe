@@ -3,8 +3,9 @@ package com.turing.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.turing.common.RedisKey;
 import com.turing.entity.User;
-import com.turing.entity.dto.RegisterDto;
-import com.turing.entity.vo.UserVo;
+import com.turing.entity.vo.RegisterVo;
+import com.turing.entity.dto.UserDto;
+import com.turing.exception.RequestParamValidationException;
 import com.turing.mapper.UserMapper;
 import com.turing.service.UserService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -33,6 +34,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Resource
     private RedisTemplate redisTemplate;
 
+    @Resource
+    private UserService userService;
+
     @Override
     public User getByOpenId(String openid) {
         log.info("openid:" + openid);
@@ -51,17 +55,26 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
-    public UserVo register(RegisterDto registerDto) {
+    public UserDto register(RegisterVo registerVo) {
         User user = new User();
-        user.setOpenid(registerDto.getOpenid());
-        user.setClassname(registerDto.getClassname());
-        user.setName(registerDto.getName());
+        user.setOpenid(registerVo.getOpenid());
+        user.setClassname(registerVo.getClassname());
+        user.setName(registerVo.getName());
         user.setAdmin(false);
         user.setRegisterTime(LocalDateTime.now());
         userMapper.insert(user);
         redisTemplate.opsForHash().put(RedisKey.USER_HASH_KEY, RedisKey.USER_FILED_KEY + user.getOpenid(), user);
-        UserVo userVo = new UserVo();
-        userVo.transform(user);
-        return userVo;
+        UserDto userDto = new UserDto();
+        userDto.transform(user);
+        return userDto;
     }
+
+    @Override
+    public User update(User user) {
+        userMapper.updateById(user);
+        redisTemplate.opsForHash().put(RedisKey.USER_HASH_KEY, RedisKey.USER_FILED_KEY+user.getOpenid(), user);
+        return user;
+    }
+
+
 }

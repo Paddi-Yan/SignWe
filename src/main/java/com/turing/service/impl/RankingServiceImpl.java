@@ -6,6 +6,7 @@ import com.turing.mapper.RankingMapper;
 import com.turing.mapper.YesterdayRankingMapper;
 import com.turing.service.RankingService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -28,6 +29,7 @@ import java.util.Set;
  * @since 2022-10-29
  */
 @Service
+@Slf4j
 public class RankingServiceImpl extends ServiceImpl<RankingMapper, Ranking> implements RankingService {
 
     @Resource
@@ -41,31 +43,25 @@ public class RankingServiceImpl extends ServiceImpl<RankingMapper, Ranking> impl
 
     @Override
     public List<Ranking> getRanking() {
-        List<Ranking> ranking = new ArrayList<>();
-        redisTemplate.execute(new SessionCallback() {
-            @Override
-            public Object execute(RedisOperations redisOperations) throws DataAccessException {
-                redisOperations.multi();
-                Set<String> userIdsOfRanking = redisOperations.opsForZSet().range(RedisKey.RANKING_ZSET_KEY, 0, -1);
-                for(String userId : userIdsOfRanking) {
-                    Ranking entity = (Ranking) redisOperations.opsForHash().get(RedisKey.RANKING_HASH_KEY, RedisKey.RANKING_FIELD_KEY+userId);
-                    ranking.add(entity);
-                }
-                return redisOperations.exec();
-            }
-        });
-        if(!ranking.isEmpty()) {
-            return ranking;
+        List<Ranking> result = new ArrayList<>();
+        Set<String> userIdsOfRanking = redisTemplate.opsForZSet().reverseRange(RedisKey.RANKING_ZSET_KEY,0, -1);
+        for(String userId : userIdsOfRanking) {
+            Ranking entity = (Ranking) redisTemplate.opsForHash().get(RedisKey.RANKING_HASH_KEY, userId);
+            result.add(entity);
         }
-        List<Ranking> result = rankingMapper.getRanking();
+        if(!result.isEmpty()) {
+            return result;
+        }
+        result = rankingMapper.getRanking();
         if(result == null || result.isEmpty()) {
             return null;
         }
+        List<Ranking> finalResult = result;
         redisTemplate.execute(new SessionCallback() {
             @Override
             public Object execute(RedisOperations redisOperations) throws DataAccessException {
                 redisOperations.multi();
-                for(Ranking entity : result) {
+                for(Ranking entity : finalResult) {
                     String fieldKey = RedisKey.RANKING_FIELD_KEY + entity.getId();
                     redisOperations.opsForHash().put(RedisKey.RANKING_HASH_KEY, fieldKey, entity);
                     redisOperations.opsForZSet().add(RedisKey.RANKING_ZSET_KEY, fieldKey, entity.getTotalTime());
@@ -73,7 +69,7 @@ public class RankingServiceImpl extends ServiceImpl<RankingMapper, Ranking> impl
                 return redisOperations.exec();
             }
         });
-        return ranking;
+        return result;
     }
 
     /**

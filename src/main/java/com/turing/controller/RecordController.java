@@ -33,14 +33,7 @@ public class RecordController {
     @GetMapping("/getByUserId/{id}")
     @ApiOperation("获取本赛季打卡记录")
     public Result getByUserId(@PathVariable String id) {
-        User user = userService.getById(id);
-        if(user == null) {
-            return Result.fail(HttpStatusCode.REQUEST_PARAM_ERROR,"不存在该用户!");
-        }
-        if(user.getClassname() == null || user.getName() == null) {
-            return Result.fail(HttpStatusCode.FORBIDDEN,"用户信息不完整,请先登记信息!");
-        }
-        return Result.success(recordService.getRecordByUser(user));
+        return Result.success(recordService.getRecordByUser(id));
     }
 }
 

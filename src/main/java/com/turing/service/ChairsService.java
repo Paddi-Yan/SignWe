@@ -2,9 +2,8 @@ package com.turing.service;
 
 import com.turing.entity.Chairs;
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.turing.entity.User;
-import com.turing.entity.dto.SignDto;
-import com.turing.entity.dto.SignOutDto;
+import com.turing.entity.vo.SignVo;
+import com.turing.entity.vo.SignOutVo;
 
 import java.util.List;
 
@@ -23,9 +22,9 @@ public interface ChairsService extends IService<Chairs> {
 
     Chairs getById(Integer id);
 
-    Chairs signIn(Chairs chair, SignDto signDto, User user) throws Exception;
+    Chairs signIn(SignVo signVo) throws Exception;
 
-    Chairs signOut(SignOutDto signOutDto) throws Exception;
+    Chairs signOut(SignOutVo signOutVo) throws Exception;
 
-    Chairs signOutForce(SignOutDto signOutDto) throws Exception;
+    Chairs signOutForce(SignOutVo signOutVo) throws Exception;
 }

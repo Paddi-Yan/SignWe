@@ -43,6 +43,8 @@ public class Record implements Serializable {
     @ApiModelProperty("打卡距离")
     private Double distance;
 
+    private String openid;
+
     private String name;
 
     private String classname;

@@ -1,9 +1,14 @@
 package com.turing.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.google.common.collect.ImmutableMap;
+import com.turing.common.HttpStatusCode;
 import com.turing.common.RedisKey;
+import com.turing.common.Result;
 import com.turing.entity.Record;
 import com.turing.entity.User;
+import com.turing.exception.AuthenticationException;
+import com.turing.exception.RequestParamValidationException;
 import com.turing.mapper.RecordMapper;
 import com.turing.service.RecordService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -41,7 +46,14 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
     private UserService userService;
 
     @Override
-    public List<Record> getRecordByUser(User user) {
+    public List<Record> getRecordByUser(String id) {
+        User user = userService.getById(id);
+        if(user == null) {
+            throw new RequestParamValidationException(ImmutableMap.of("userId",id));
+        }
+        if(user.getClassname() == null || user.getName() == null) {
+            throw new AuthenticationException();
+        }
         List<Record> recordList = redisTemplate.opsForList()
                                   .range(RedisKey.RECORD_KEY + user.getOpenid(), 0, -1);
         if(recordList != null && !recordList.isEmpty()) {
@@ -49,7 +61,7 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
         }
         recordList = recordMapper.getByUser(user);
         if(recordList != null && !recordList.isEmpty()) {
-            redisTemplate.opsForList().rightPushAll(RedisKey.RECORD_KEY+user.getOpenid(), recordList);
+            redisTemplate.opsForList().rightPushAll(RedisKey.RECORD_KEY+ user.getOpenid(), recordList);
         }
         return recordList;
     }
@@ -57,26 +69,37 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
     @Override
     public List<Record> getYesterdayRecord() {
         List<Record> recordList = new ArrayList<>();
-        List<Record> finalRecordList = recordList;
-        redisTemplate.execute(new SessionCallback() {
-            @Override
-            public Object execute(RedisOperations redisOperations) throws DataAccessException {
-                redisOperations.multi();
-                Set<String> keys = redisOperations.keys(RedisKey.RECORD_KEY + "*");
-                for(String recordKey : keys) {
-                    String openid = recordKey.replace(RedisKey.RECORD_KEY, "");
-                    User user = userService.getByOpenId(openid);
-                    List<Record> records = redisOperations.opsForList().range(recordKey, 0, user.getTodayCount() - 1);
-                    finalRecordList.addAll(records);
-                }
-                return redisOperations.exec();
+        Set<String> keys = redisTemplate.keys(RedisKey.RECORD_KEY + "*");
+        for(String recordKey : keys) {
+            String openid = recordKey.replace(RedisKey.RECORD_KEY, "");
+            User user = userService.getByOpenId(openid);
+            if(user != null && user.getTodayCount() >= 1 && user.getTodayTime() >= 1) {
+                List<Record> records = redisTemplate.opsForList().range(recordKey, 0, user.getTodayCount() - 1);
+                recordList.addAll(records);
+                user.setTodayCount(0);
+                user.setTodayTime(0);
+                userService.update(user);
             }
-        });
-        if(!finalRecordList.isEmpty()) {
-            return finalRecordList;
+
+        }
+        if(!recordList.isEmpty()) {
+            return recordList;
         }
         LocalDateTime yesterdayTime = LocalDateTime.now().minusDays(1);
-        recordList = recordMapper.selectList(new QueryWrapper<Record>().ge("final_stop_time", yesterdayTime));
+        recordList = recordMapper.selectList(new QueryWrapper<Record>().ge("final_stop_time", yesterdayTime).orderByAsc("final_stop_time"));
+        if(!recordList.isEmpty()) {
+            List<Record> finalRecordList = recordList;
+            redisTemplate.execute(new SessionCallback() {
+                @Override
+                public Object execute(RedisOperations redisOperations) throws DataAccessException {
+                    redisOperations.multi();
+                    for(Record record : finalRecordList) {
+                        redisOperations.opsForList().leftPush(RedisKey.RECORD_KEY+record.getOpenid(), record);
+                    }
+                    return redisOperations.exec();
+                }
+            });
+        }
         return recordList;
     }
 

@@ -2,8 +2,8 @@ package com.turing.service;
 
 import com.turing.entity.User;
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.turing.entity.dto.RegisterDto;
-import com.turing.entity.vo.UserVo;
+import com.turing.entity.vo.RegisterVo;
+import com.turing.entity.dto.UserDto;
 
 /**
  * <p>
@@ -17,6 +17,7 @@ public interface UserService extends IService<User> {
 
     User getByOpenId(String openid);
 
-    UserVo register(RegisterDto registerDto);
+    UserDto register(RegisterVo registerVo);
 
+    User update(User user);
 }

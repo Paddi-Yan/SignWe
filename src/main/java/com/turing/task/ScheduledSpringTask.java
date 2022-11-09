@@ -3,7 +3,7 @@ package com.turing.task;
 import com.turing.common.RedisKey;
 import com.turing.entity.Chairs;
 import com.turing.entity.Door;
-import com.turing.entity.dto.SignOutDto;
+import com.turing.entity.vo.SignOutVo;
 import com.turing.mapper.DoorMapper;
 import com.turing.service.ChairsService;
 import com.turing.service.DoorService;
@@ -59,7 +59,7 @@ public class ScheduledSpringTask {
      * 之后就不会再用到
      */
 
-    @Scheduled(cron = "0 30 23 * * ? ")
+    @Scheduled(cron = "30 30 23 * * ? ")
     public void closeDoorTask() throws InterruptedException {
         log.info("下班时间到,自动关门程序启动....");
         Door door = doorService.getDoorStatus();
@@ -74,16 +74,16 @@ public class ScheduledSpringTask {
     }
 
 
-    @Scheduled(cron = "0 30 23 * * ? ")
+    @Scheduled(cron = "00 30 23 * * ? ")
     public void autoSignOut() throws InterruptedException {
         log.info("下班时间到,青蒜签到时间中....");
         List<Chairs> chairsList = chairsService.getChairsList();
         for(Chairs chair : chairsList) {
             //遍历座位,如果有未签退的自动签退并计算学习时长
             if(!chair.getIsEmpty()) {
-                SignOutDto signOutDto = new SignOutDto(chair.getOpenId(), chair.getId());
+                SignOutVo signOutVo = new SignOutVo(chair.getOpenId(), chair.getId());
                 try {
-                    chairsService.signOut(signOutDto);
+                    chairsService.signOut(signOutVo);
                 } catch(Exception e) {
                     log.error("签退失败,原因:"+e.getMessage());
                 }
@@ -95,9 +95,8 @@ public class ScheduledSpringTask {
     @Scheduled(cron = "0 0 0 * * ? ")
     public void updateYesterdayRanking() throws InterruptedException {
         log.info("计算昨日学习排行榜定时任务开启....");
-//        user.setTodayTime(0);
-//        user.setTodayCount(0);
         yesterdayRecordService.generateYesterdayRanking();
     }
+
 
 }
