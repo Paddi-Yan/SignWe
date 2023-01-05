@@ -1,7 +1,7 @@
 package com.turing.service;
 
-import com.turing.entity.Door;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.turing.entity.Door;
 
 /**
  * <p>
@@ -13,7 +13,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
  */
 public interface DoorService extends IService<Door> {
 
-    Door getDoorStatus();
+    Door getDoorStatus(String id);
 
     Door openDoor(Door door, String username);
 

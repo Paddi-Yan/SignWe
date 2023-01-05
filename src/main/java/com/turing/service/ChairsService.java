@@ -1,9 +1,9 @@
 package com.turing.service;
 
-import com.turing.entity.Chairs;
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.turing.entity.vo.SignVo;
+import com.turing.entity.Chairs;
 import com.turing.entity.vo.SignOutVo;
+import com.turing.entity.vo.SignVo;
 
 import java.util.List;
 

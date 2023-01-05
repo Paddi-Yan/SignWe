@@ -1,20 +1,24 @@
 package com.turing.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.github.xiaolyuh.annotation.CachePut;
+import com.github.xiaolyuh.annotation.Cacheable;
+import com.github.xiaolyuh.annotation.SecondaryCache;
+import com.github.xiaolyuh.support.CacheMode;
 import com.turing.common.RedisKey;
 import com.turing.entity.User;
 import com.turing.entity.vo.RegisterVo;
-import com.turing.entity.dto.UserDto;
-import com.turing.exception.RequestParamValidationException;
 import com.turing.mapper.UserMapper;
 import com.turing.service.UserService;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -26,55 +30,45 @@ import java.time.LocalDateTime;
  */
 @Service
 @Slf4j
+@Transactional
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
-
-    @Resource
-    private UserMapper userMapper;
 
     @Resource
     private RedisTemplate redisTemplate;
 
-    @Resource
-    private UserService userService;
+    private static final int MAX_LENGTH = 28;
 
     @Override
+    @Cacheable(cacheNames = RedisKey.USER_KEY, key = "#openid", depict = "用户缓存", cacheMode = CacheMode.SECOND,
+            secondaryCache = @SecondaryCache(expireTime = 60 * 3, preloadTime = 20, timeUnit = TimeUnit.MINUTES, forceRefresh = true, magnification = 200))
     public User getByOpenId(String openid) {
-        log.info("openid:" + openid);
-        User user = (User) redisTemplate.opsForHash().get(RedisKey.USER_HASH_KEY, RedisKey.USER_FILED_KEY + openid);
-        if(user != null) {
-            log.info("Redis缓存查询用户结果：" + user);
-            return user;
+        if(openid.length() > MAX_LENGTH && openid.startsWith("\"") && openid.endsWith("\"")) {
+            openid = openid.replaceAll("\"", "");
         }
-        user = userMapper.selectOne(new QueryWrapper<User>().eq("openid", openid));
-        log.info("MySQL数据库查询用户结果：" + user);
-        if(user != null) {
-            redisTemplate.opsForHash().put(RedisKey.USER_HASH_KEY, RedisKey.USER_FILED_KEY+openid, user);
-            log.info("数据库查询到该用户,已经缓存至Redis!");
-        }
+        User user = baseMapper.selectOne(new LambdaQueryWrapper<User>().eq(User :: getOpenid, openid));
         return user;
     }
 
     @Override
-    public UserDto register(RegisterVo registerVo) {
+    @CachePut(cacheNames = RedisKey.USER_KEY, key = "#registerVo.openid", depict = "用户缓存", cacheMode = CacheMode.SECOND,
+            secondaryCache = @SecondaryCache(expireTime = 60 * 3, preloadTime = 20, timeUnit = TimeUnit.MINUTES, forceRefresh = true, magnification = 200))
+    public User register(RegisterVo registerVo) {
         User user = new User();
         user.setOpenid(registerVo.getOpenid());
         user.setClassname(registerVo.getClassname());
         user.setName(registerVo.getName());
         user.setAdmin(false);
         user.setRegisterTime(LocalDateTime.now());
-        userMapper.insert(user);
-        redisTemplate.opsForHash().put(RedisKey.USER_HASH_KEY, RedisKey.USER_FILED_KEY + user.getOpenid(), user);
-        UserDto userDto = new UserDto();
-        userDto.transform(user);
-        return userDto;
-    }
-
-    @Override
-    public User update(User user) {
-        userMapper.updateById(user);
-        redisTemplate.opsForHash().put(RedisKey.USER_HASH_KEY, RedisKey.USER_FILED_KEY+user.getOpenid(), user);
+        baseMapper.insert(user);
         return user;
     }
 
-
+    @Override
+    @CachePut(cacheNames = RedisKey.USER_KEY, key = "#user.openid", depict = "用户缓存", cacheMode = CacheMode.SECOND,
+            secondaryCache = @SecondaryCache(expireTime = 60 * 3, preloadTime = 20, timeUnit = TimeUnit.MINUTES, forceRefresh = true, magnification = 200))
+    public User update(User user) {
+        baseMapper.updateById(user);
+        log.info("更新用户信息: {}", user);
+        return user;
+    }
 }

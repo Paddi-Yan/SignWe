@@ -1,6 +1,9 @@
 package com.turing.config;
 
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.Redisson;
+import org.redisson.api.RedissonClient;
+import org.redisson.config.Config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
@@ -8,6 +11,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
+import java.io.IOException;
 import java.io.Serializable;
 
 /**
@@ -35,5 +39,11 @@ public class RedisConfig {
         //初始化参数和初始化工作
         redisTemplate.afterPropertiesSet();
         return redisTemplate;
+    }
+
+    @Bean
+    public RedissonClient redissonClient() throws IOException {
+        Config config = Config.fromYAML(this.getClass().getClassLoader().getResource("redisson/redisson.yml"));
+        return Redisson.create(config);
     }
 }

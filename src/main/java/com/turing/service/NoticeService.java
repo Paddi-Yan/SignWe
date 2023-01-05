@@ -1,7 +1,7 @@
 package com.turing.service;
 
-import com.turing.entity.Notice;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.turing.entity.Notice;
 
 /**
  * <p>
@@ -13,7 +13,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
  */
 public interface NoticeService extends IService<Notice> {
 
-    Notice getNotice();
+    Notice getNotice(String id);
 
-    Notice updateNotice(Notice notice);
+    Notice updateNotice(Notice notice, String id);
 }

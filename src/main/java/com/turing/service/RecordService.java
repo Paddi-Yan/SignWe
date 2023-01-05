@@ -1,7 +1,7 @@
 package com.turing.service;
 
-import com.turing.entity.Record;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.turing.entity.Record;
 
 import java.util.List;
 
@@ -14,6 +14,8 @@ import java.util.List;
  * @since 2022-10-29
  */
 public interface RecordService extends IService<Record> {
+
+    Boolean insertRecord(Record record, String userId);
 
     List<Record> getRecordByUser(String id);
 

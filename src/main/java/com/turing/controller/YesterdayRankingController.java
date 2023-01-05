@@ -1,12 +1,12 @@
 package com.turing.controller;
 
 
+import com.turing.common.RedisKey;
 import com.turing.common.Result;
 import com.turing.service.YesterdayRankingService;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,7 +31,7 @@ public class YesterdayRankingController {
     @GetMapping("/get")
     @ResponseBody
     public Result getYesterdayRecord() {
-        return Result.success(service.getRanking());
+        return Result.success(service.getRanking(RedisKey.TURING_TEAM));
     }
 }
 

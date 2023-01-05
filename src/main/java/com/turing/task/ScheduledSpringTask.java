@@ -1,13 +1,11 @@
 package com.turing.task;
 
-import com.turing.common.RedisKey;
 import com.turing.entity.Chairs;
 import com.turing.entity.Door;
 import com.turing.entity.vo.SignOutVo;
 import com.turing.mapper.DoorMapper;
 import com.turing.service.ChairsService;
 import com.turing.service.DoorService;
-import com.turing.service.UserService;
 import com.turing.service.YesterdayRankingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -41,9 +39,6 @@ public class ScheduledSpringTask {
     private ChairsService chairsService;
 
     @Resource
-    private UserService userService;
-
-    @Resource
     private YesterdayRankingService yesterdayRecordService;
 
     private static final String ID = "TuringTeam";
@@ -61,14 +56,9 @@ public class ScheduledSpringTask {
 
     @Scheduled(cron = "30 30 23 * * ? ")
     public void closeDoorTask() throws InterruptedException {
-        log.info("下班时间到,自动关门程序启动....");
-        Door door = doorService.getDoorStatus();
+        Door door = doorService.getDoorStatus(ID);
         if(door.getOpen()) {
-            door.setOpen(false);
-            door.setCloseInfo("11:30 自动关门");
-            log.info("关门成功,当前状态:" + door);
-            redisTemplate.opsForValue().set(RedisKey.DOOR_KEY, door);
-            doorMapper.updateById(door);
+            doorService.closeDoor(door, "11:30 自动关门");
             log.info("实验室自动关门成功!");
         }
     }
@@ -76,25 +66,29 @@ public class ScheduledSpringTask {
 
     @Scheduled(cron = "00 30 23 * * ? ")
     public void autoSignOut() throws InterruptedException {
-        log.info("下班时间到,青蒜签到时间中....");
+        ScheduledSpringTask.log.info("下班时间到,青蒜签到时间中....");
         List<Chairs> chairsList = chairsService.getChairsList();
         for(Chairs chair : chairsList) {
             //遍历座位,如果有未签退的自动签退并计算学习时长
             if(!chair.getIsEmpty()) {
                 SignOutVo signOutVo = new SignOutVo(chair.getOpenId(), chair.getId());
+                ScheduledSpringTask.log.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+                ScheduledSpringTask.log.info("自动签退信息:{}", signOutVo);
+                ScheduledSpringTask.log.info("座位信息:{}", chair);
+                ScheduledSpringTask.log.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
                 try {
                     chairsService.signOut(signOutVo);
                 } catch(Exception e) {
-                    log.error("签退失败,原因:"+e.getMessage());
+                    ScheduledSpringTask.log.error("签退失败,原因:" + e.getMessage());
                 }
             }
         }
-        log.info("青蒜签到时间成功!");
+        ScheduledSpringTask.log.info("青蒜签到时间成功!");
     }
 
     @Scheduled(cron = "0 0 0 * * ? ")
     public void updateYesterdayRanking() throws InterruptedException {
-        log.info("计算昨日学习排行榜定时任务开启....");
+        ScheduledSpringTask.log.info("计算昨日学习排行榜定时任务开启....");
         yesterdayRecordService.generateYesterdayRanking();
     }
 

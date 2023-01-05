@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 
+import static com.turing.common.RedisKey.TURING_TEAM;
+
 /**
  * <p>
  * 前端控制器
@@ -31,18 +33,19 @@ public class DoorController {
     @Resource
     private ChairsService chairsService;
 
+
     @ResponseBody
     @GetMapping("/getStatus")
     @ApiOperation(value = "查询开门状态")
     public Result getDoorStatus() {
-        return Result.success(doorService.getDoorStatus());
+        return Result.success(doorService.getDoorStatus(TURING_TEAM));
     }
 
     @ResponseBody
     @PostMapping("/open")
     @ApiOperation(value = "开门")
     public Result openDoor(@RequestParam String username) {
-        Door door = doorService.getDoorStatus();
+        Door door = doorService.getDoorStatus(TURING_TEAM);
         if(door.getOpen()) {
             return Result.success(HttpStatusCode.NO_CONTENT, "已开门,请勿重复操作!");
         }
@@ -53,7 +56,7 @@ public class DoorController {
     @PostMapping("/close")
     @ApiOperation(value = "关门")
     public Result closeDoor(@RequestParam String username) {
-        Door door = doorService.getDoorStatus();
+        Door door = doorService.getDoorStatus(TURING_TEAM);
         if(!door.getOpen()) {
             return Result.success(HttpStatusCode.NO_CONTENT, "已关门,请勿重复操作!");
         }

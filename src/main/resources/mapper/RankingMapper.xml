@@ -13,7 +13,7 @@
     </resultMap>
 
     <select id="getRanking" resultType="com.turing.entity.Ranking">
-        select * from sys_ranking order by total_time;
+        select * from sys_ranking order by total_time DESC;
     </select>
 
 </mapper>

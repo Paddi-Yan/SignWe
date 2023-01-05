@@ -2,14 +2,10 @@ package com.turing.controller;
 
 
 import com.google.common.collect.ImmutableMap;
-import com.turing.common.HttpStatusCode;
 import com.turing.common.Result;
 import com.turing.entity.Chairs;
-import com.turing.entity.Door;
-import com.turing.entity.User;
 import com.turing.entity.vo.SignOutVo;
 import com.turing.entity.vo.SignVo;
-import com.turing.exception.RequestParamValidationException;
 import com.turing.exception.ResourceNotFoundException;
 import com.turing.service.ChairsService;
 import com.turing.service.DoorService;
@@ -53,7 +49,7 @@ public class ChairsController {
     public Result getByChairId(@PathVariable Integer id) {
         Chairs chair = chairsService.getById(id);
         if(chair == null) {
-            throw new ResourceNotFoundException(ImmutableMap.of("chairId",id));
+            throw new ResourceNotFoundException(ImmutableMap.of("chairId", id));
         }
         return Result.success(chair);
     }

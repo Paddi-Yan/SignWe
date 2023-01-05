@@ -1,7 +1,6 @@
 package com.turing.controller.admin;
 
-import com.google.common.collect.ImmutableMap;
-import com.turing.common.HttpStatusCode;
+import com.turing.common.RedisKey;
 import com.turing.common.Result;
 import com.turing.entity.Notice;
 import com.turing.entity.User;
@@ -9,9 +8,8 @@ import com.turing.entity.vo.SignOutVo;
 import com.turing.exception.AuthenticationException;
 import com.turing.service.*;
 import io.swagger.annotations.ApiOperation;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import javax.annotation.Resource;
 
 /**
  * @Project: SignWe
@@ -20,23 +18,19 @@ import javax.annotation.Resource;
  */
 @RestController()
 @RequestMapping("/admin")
+@RequiredArgsConstructor
 public class AdminController {
 
 
-    @Resource
-    private UserService userService;
+    private final UserService userService;
 
-    @Resource
-    private ChairsService chairsService;
+    private final ChairsService chairsService;
 
-    @Resource
-    private NoticeService noticeService;
+    private final NoticeService noticeService;
 
-    @Resource
-    private RankingService rankingService;
+    private final RankingService rankingService;
 
-    @Resource
-    private RecordService recordService;
+    private final RecordService recordService;
 
     private void checkAdmin(String openId) {
         User user = userService.getByOpenId(openId);
@@ -59,7 +53,7 @@ public class AdminController {
     @ApiOperation("修改公告内容,需要验证是否管理员")
     public Result updateNotice(@RequestParam String openid, @RequestBody Notice notice) {
         checkAdmin(openid);
-        return Result.success(noticeService.updateNotice(notice));
+        return Result.success(noticeService.updateNotice(notice, RedisKey.TURING_TEAM));
     }
 
 

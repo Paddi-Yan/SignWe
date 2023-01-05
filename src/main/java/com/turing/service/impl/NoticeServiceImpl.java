@@ -1,14 +1,19 @@
 package com.turing.service.impl;
 
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.github.xiaolyuh.annotation.CachePut;
+import com.github.xiaolyuh.annotation.Cacheable;
+import com.github.xiaolyuh.annotation.FirstCache;
+import com.github.xiaolyuh.annotation.SecondaryCache;
+import com.github.xiaolyuh.support.CacheMode;
 import com.turing.common.RedisKey;
 import com.turing.entity.Notice;
 import com.turing.mapper.NoticeMapper;
 import com.turing.service.NoticeService;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import org.springframework.data.redis.core.RedisTemplate;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -19,30 +24,26 @@ import javax.annotation.Resource;
  * @since 2022-10-29
  */
 @Service
+@RequiredArgsConstructor
 public class NoticeServiceImpl extends ServiceImpl<NoticeMapper, Notice> implements NoticeService {
 
-    @Resource
-    private NoticeMapper noticeMapper;
+    private final NoticeMapper noticeMapper;
 
-    @Resource
-    private RedisTemplate redisTemplate;
-
+    @Cacheable(cacheNames = RedisKey.NOTICE_KEY, depict = "公告内容", cacheMode = CacheMode.ALL, key = "#id",
+            firstCache = @FirstCache(expireTime = 7, timeUnit = TimeUnit.DAYS),
+            secondaryCache = @SecondaryCache(expireTime = 7, timeUnit = TimeUnit.DAYS, forceRefresh = true))
     @Override
-    public Notice getNotice() {
-        Notice notice = (Notice) redisTemplate.opsForValue().get(RedisKey.NOTICE_KEY);
-        if(notice != null) {
-            return notice;
-        }
-        notice = noticeMapper.selectOne(null);
-        redisTemplate.opsForValue().set(RedisKey.NOTICE_KEY, notice);
-        return notice;
+    public Notice getNotice(String id) {
+        return noticeMapper.selectOne(null);
     }
 
+    @CachePut(cacheNames = RedisKey.NOTICE_KEY, depict = "公告内容", cacheMode = CacheMode.ALL, key = "#id",
+            firstCache = @FirstCache(initialCapacity = 1, maximumSize = 10, expireTime = 7, timeUnit = TimeUnit.DAYS),
+            secondaryCache = @SecondaryCache(expireTime = 7, timeUnit = TimeUnit.DAYS, forceRefresh = true))
     @Override
-    public Notice updateNotice(Notice notice) {
+    public Notice updateNotice(Notice notice, String id) {
         noticeMapper.updateNotice(notice);
         Notice newNotice = noticeMapper.selectOne(null);
-        redisTemplate.opsForValue().set(RedisKey.NOTICE_KEY, newNotice);
         return newNotice;
     }
 }

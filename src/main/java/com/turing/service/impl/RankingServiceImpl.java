@@ -1,11 +1,11 @@
 package com.turing.service.impl;
 
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.turing.common.RedisKey;
 import com.turing.entity.Ranking;
 import com.turing.mapper.RankingMapper;
 import com.turing.mapper.YesterdayRankingMapper;
 import com.turing.service.RankingService;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisOperations;
@@ -13,12 +13,14 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import sun.security.krb5.internal.KRBCred;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -43,12 +45,21 @@ public class RankingServiceImpl extends ServiceImpl<RankingMapper, Ranking> impl
 
     @Override
     public List<Ranking> getRanking() {
-        List<Ranking> result = new ArrayList<>();
-        Set<String> userIdsOfRanking = redisTemplate.opsForZSet().reverseRange(RedisKey.RANKING_ZSET_KEY,0, -1);
-        for(String userId : userIdsOfRanking) {
+        Set<String> userIdsOfRanking = redisTemplate.opsForZSet().reverseRange(RedisKey.RANKING_ZSET_KEY, 0, -1);
+        if(userIdsOfRanking == null || userIdsOfRanking.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Ranking> result = userIdsOfRanking.stream()
+                                               .map(userId -> CompletableFuture.supplyAsync(() -> (Ranking) redisTemplate.opsForHash()
+                                                                                                                         .get(RedisKey.RANKING_HASH_KEY, userId)))
+                                               .collect(Collectors.toList())
+                                               .stream()
+                                               .map(future -> future.join())
+                                               .collect(Collectors.toList());
+        /*for(String userId : userIdsOfRanking) {
             Ranking entity = (Ranking) redisTemplate.opsForHash().get(RedisKey.RANKING_HASH_KEY, userId);
             result.add(entity);
-        }
+        }*/
         if(!result.isEmpty()) {
             return result;
         }
@@ -82,7 +93,7 @@ public class RankingServiceImpl extends ServiceImpl<RankingMapper, Ranking> impl
         ArrayList<String> deleteKeys = new ArrayList<>();
         deleteKeys.add(RedisKey.RANKING_HASH_KEY);
         deleteKeys.add(RedisKey.RANKING_ZSET_KEY);
-        deleteKeys.add(RedisKey.YESTERDAY_RANKING_ZSET_KEY);
+        deleteKeys.add(RedisKey.YESTERDAY_RANKING_KEY);
         redisTemplate.delete(deleteKeys);
         rankingMapper.deleteAll();
         yesterdayRankingMapper.deleteAll();

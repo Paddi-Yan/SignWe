@@ -1,16 +1,18 @@
 package com.turing.service.impl;
 
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.github.xiaolyuh.annotation.*;
+import com.github.xiaolyuh.support.CacheMode;
 import com.turing.common.RedisKey;
 import com.turing.entity.Door;
-import com.turing.mapper.ChairsMapper;
 import com.turing.mapper.DoorMapper;
 import com.turing.service.DoorService;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -33,34 +35,32 @@ public class DoorServiceImpl extends ServiceImpl<DoorMapper, Door> implements Do
     private static final String ID = "TuringTeam";
 
     @Override
-    public Door getDoorStatus() {
-        Door door = (Door) redisTemplate.opsForValue().get(RedisKey.DOOR_KEY);
-        if(door != null && door.getOpen() != null) {
-            return door;
-        }
-        door = doorMapper.selectById(ID);
-        redisTemplate.opsForValue().set(RedisKey.DOOR_KEY, door);
+    @Cacheable(cacheNames = RedisKey.DOOR_KEY, key = "#id", depict = "开门状态缓存信息", cacheMode = CacheMode.ALL,
+            firstCache = @FirstCache(initialCapacity = 1, maximumSize = 1, expireTime = 15, timeUnit = TimeUnit.HOURS),
+            secondaryCache = @SecondaryCache(expireTime = 15, timeUnit = TimeUnit.HOURS, forceRefresh = true))
+    public Door getDoorStatus(String id) {
+        Door door = doorMapper.selectById(ID);
         return door;
     }
 
     @Override
+    @CachePut(cacheNames = RedisKey.DOOR_KEY, key = "#door.id", depict = "开门状态缓存信息", cacheMode = CacheMode.ALL,
+            firstCache = @FirstCache(initialCapacity = 1, maximumSize = 1, expireTime = 15, timeUnit = TimeUnit.HOURS),
+            secondaryCache = @SecondaryCache(expireTime = 15, timeUnit = TimeUnit.HOURS, forceRefresh = true))
     public Door openDoor(Door door, String username) {
         door.setOpen(true);
         door.setOpenInfo(username);
         door.setOpenTime(LocalDateTime.now());
         doorMapper.updateById(door);
-        redisTemplate.opsForValue().set(RedisKey.DOOR_KEY, door);
         return door;
     }
 
     @Override
+    @CacheEvict(cacheNames = RedisKey.DOOR_KEY, key = "#door.id")
     public Door closeDoor(Door door, String username) {
         door.setCloseInfo(username);
         door.setOpen(false);
         doorMapper.updateById(door);
-        redisTemplate.opsForValue().set(RedisKey.DOOR_KEY, door);
         return door;
     }
-
-
 }

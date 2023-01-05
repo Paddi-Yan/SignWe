@@ -1,11 +1,14 @@
 package com.turing.controller;
 
 
+import com.turing.common.RedisKey;
 import com.turing.common.Result;
 import com.turing.service.NoticeService;
-import com.turing.service.UserService;
 import io.swagger.annotations.ApiOperation;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 
@@ -24,14 +27,11 @@ public class NoticeController {
     @Resource
     private NoticeService noticeService;
 
-    @Resource
-    private UserService userService;
-
     @ResponseBody
     @GetMapping("/getNotice")
     @ApiOperation("获取公告内容")
     public Result getNotice() {
-        return Result.success(noticeService.getNotice());
+        return Result.success(noticeService.getNotice(RedisKey.TURING_TEAM));
     }
 
 }

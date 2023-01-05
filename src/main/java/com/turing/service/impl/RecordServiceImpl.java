@@ -1,17 +1,15 @@
 package com.turing.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.common.collect.ImmutableMap;
-import com.turing.common.HttpStatusCode;
 import com.turing.common.RedisKey;
-import com.turing.common.Result;
 import com.turing.entity.Record;
 import com.turing.entity.User;
 import com.turing.exception.AuthenticationException;
 import com.turing.exception.RequestParamValidationException;
 import com.turing.mapper.RecordMapper;
 import com.turing.service.RecordService;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.turing.service.UserService;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisOperations;
@@ -46,22 +44,27 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
     private UserService userService;
 
     @Override
+    public Boolean insertRecord(Record record, String userId) {
+        return false;
+    }
+
+    @Override
     public List<Record> getRecordByUser(String id) {
         User user = userService.getById(id);
         if(user == null) {
-            throw new RequestParamValidationException(ImmutableMap.of("userId",id));
+            throw new RequestParamValidationException(ImmutableMap.of("userId", id));
         }
         if(user.getClassname() == null || user.getName() == null) {
             throw new AuthenticationException();
         }
         List<Record> recordList = redisTemplate.opsForList()
-                                  .range(RedisKey.RECORD_KEY + user.getOpenid(), 0, -1);
+                                               .range(RedisKey.RECORD_KEY + user.getOpenid(), 0, -1);
         if(recordList != null && !recordList.isEmpty()) {
             return recordList;
         }
         recordList = recordMapper.getByUser(user);
         if(recordList != null && !recordList.isEmpty()) {
-            redisTemplate.opsForList().rightPushAll(RedisKey.RECORD_KEY+ user.getOpenid(), recordList);
+            redisTemplate.opsForList().rightPushAll(RedisKey.RECORD_KEY + user.getOpenid(), recordList);
         }
         return recordList;
     }
@@ -80,13 +83,13 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
                 user.setTodayTime(0);
                 userService.update(user);
             }
-
         }
         if(!recordList.isEmpty()) {
             return recordList;
         }
         LocalDateTime yesterdayTime = LocalDateTime.now().minusDays(1);
-        recordList = recordMapper.selectList(new QueryWrapper<Record>().ge("final_stop_time", yesterdayTime).orderByAsc("final_stop_time"));
+        recordList = recordMapper.selectList(new QueryWrapper<Record>().ge("final_stop_time", yesterdayTime)
+                                                                       .orderByAsc("final_stop_time"));
         if(!recordList.isEmpty()) {
             List<Record> finalRecordList = recordList;
             redisTemplate.execute(new SessionCallback() {
@@ -94,7 +97,7 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
                 public Object execute(RedisOperations redisOperations) throws DataAccessException {
                     redisOperations.multi();
                     for(Record record : finalRecordList) {
-                        redisOperations.opsForList().leftPush(RedisKey.RECORD_KEY+record.getOpenid(), record);
+                        redisOperations.opsForList().leftPush(RedisKey.RECORD_KEY + record.getOpenid(), record);
                     }
                     return redisOperations.exec();
                 }
@@ -106,7 +109,7 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
     @Override
     public void deleteLogical() {
         //删除Redis中的缓存
-        redisTemplate.delete(redisTemplate.keys(RedisKey.RECORD_KEY+"*"));
+        redisTemplate.delete(redisTemplate.keys(RedisKey.RECORD_KEY + "*"));
         //逻辑删除Mysql中的记录
         recordMapper.delete(null);
     }

@@ -3,16 +3,14 @@ package com.turing.config;
 import com.google.common.base.Predicate;
 import com.turing.common.HttpStatusCode;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import springfox.documentation.builders.ApiInfoBuilder;
-import springfox.documentation.builders.PathSelectors;
 import springfox.documentation.builders.RequestHandlerSelectors;
 import springfox.documentation.builders.ResponseMessageBuilder;
 import springfox.documentation.schema.ModelRef;
-import springfox.documentation.service.*;
+import springfox.documentation.service.ApiInfo;
+import springfox.documentation.service.ResponseMessage;
 import springfox.documentation.spi.DocumentationType;
-import springfox.documentation.spi.service.contexts.SecurityContext;
 import springfox.documentation.spring.web.plugins.Docket;
 import springfox.documentation.swagger2.annotations.EnableSwagger2;
 
@@ -63,7 +61,7 @@ public class SwaggerConfig {
 
     public ApiInfo apiInfo() {
         return new ApiInfoBuilder().title("SignWe接口文档" + "\t" + new SimpleDateFormat("yyyy-MM-dd").format(new Date()))
-                                   .description("Drama Game Schedule Programmer API Document")
+                                   .description("SignWe Programmer API Document")
                                    .version("1.0")
                                    .build();
     }
