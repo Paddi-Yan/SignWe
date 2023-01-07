@@ -10,13 +10,14 @@ import com.turing.common.RedisKey;
 import com.turing.entity.User;
 import com.turing.entity.vo.RegisterVo;
 import com.turing.mapper.UserMapper;
+import com.turing.service.SignStatisticsService;
 import com.turing.service.UserService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 
@@ -31,11 +32,12 @@ import java.util.concurrent.TimeUnit;
 @Service
 @Slf4j
 @Transactional
+@RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
 
-    @Resource
-    private RedisTemplate redisTemplate;
+    private final RedisTemplate redisTemplate;
 
+    private final SignStatisticsService signStatisticsService;
     private static final int MAX_LENGTH = 28;
 
     @Override
@@ -70,5 +72,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         baseMapper.updateById(user);
         log.info("更新用户信息: {}", user);
         return user;
+    }
+
+    @Override
+    public void signOut(User user, Integer studyTime) {
+        user.setStatus(User.SIGN_IN);
+        user.setTodayTime(user.getTodayTime() + studyTime);
+        user.setTodayCount(user.getTodayCount() + 1);
+        user.setTotalTime(user.getTotalTime() + studyTime);
+        update(user);
+        signStatisticsService.count(user.getId());
     }
 }

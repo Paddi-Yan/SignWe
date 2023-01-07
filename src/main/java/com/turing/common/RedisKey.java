@@ -16,7 +16,7 @@ public class RedisKey {
 
     public static final String YESTERDAY_RANKING_KEY = KEY_PREFIX + "yesterday_ranking";
 
-    public static final String RECORD_KEY = KEY_PREFIX + "study_record:";
+    public static final String RECORD_KEY = KEY_PREFIX + "record:";
 
     public static final String USER_HASH_KEY = KEY_PREFIX + "user:";
 
@@ -31,4 +31,7 @@ public class RedisKey {
 
     public static final String TURING_TEAM = "TuringTeam";
 
+    public static final String DAY_STATISTICS_KEY = KEY_PREFIX + "statistics:" + "day:";
+
+    public static final String MONTH_STATISTICS_KEY = KEY_PREFIX + "statistics:" + "month:" + "userId:";
 }

@@ -27,7 +27,7 @@ import java.util.List;
 @Configuration
 @EnableSwagger2
 public class SwaggerConfig {
-    @Value("${spring.swagger2.enabled}")
+    @Value("${swagger.enabled}")
     private Boolean enabled;
 
     //    @Bean

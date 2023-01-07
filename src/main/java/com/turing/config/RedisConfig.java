@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
@@ -21,6 +22,10 @@ import java.io.Serializable;
 @Configuration
 @Slf4j
 public class RedisConfig {
+
+    @Value("${spring.profiles.active}")
+    private String profile;
+
     @Bean
     public RedisTemplate<String, Serializable> redisTemplate(LettuceConnectionFactory lettuceConnectionFactory) {
         RedisTemplate<String, Serializable> redisTemplate = new RedisTemplate<>();
@@ -43,7 +48,10 @@ public class RedisConfig {
 
     @Bean
     public RedissonClient redissonClient() throws IOException {
-        Config config = Config.fromYAML(this.getClass().getClassLoader().getResource("redisson/redisson.yml"));
+        log.info("当前系统配置文件级别为：{}", profile);
+        Config config = Config.fromYAML(this.getClass()
+                                            .getClassLoader()
+                                            .getResource("redisson/redisson-" + profile + ".yml"));
         return Redisson.create(config);
     }
 }

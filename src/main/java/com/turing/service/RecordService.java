@@ -1,8 +1,11 @@
 package com.turing.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.turing.entity.Chairs;
 import com.turing.entity.Record;
+import com.turing.entity.User;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -15,11 +18,12 @@ import java.util.List;
  */
 public interface RecordService extends IService<Record> {
 
-    Boolean insertRecord(Record record, String userId);
 
     List<Record> getRecordByUser(String id);
 
-    List<Record> getYesterdayRecord();
+    List<Record> getYesterdaySignedRecordList();
 
     void deleteLogical();
+
+    void insertRecord(Chairs chair, User user, LocalDateTime signInTime, LocalDateTime signOutTime, Integer studyTime);
 }

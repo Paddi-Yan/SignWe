@@ -50,11 +50,10 @@ public class YesterdayRankingServiceImpl extends ServiceImpl<YesterdayRankingMap
     @Override
     public void generateYesterdayRanking() {
         //生成昨日排行榜之前需要对之前的数据进行清除
-        redisTemplate.delete(RedisKey.YESTERDAY_RANKING_KEY);
-        yesterdayRankingMapper.deleteAll();
-        YesterdayRankingServiceImpl.log.info("生成昨日学习排行榜中....");
+        log.info("生成昨日学习排行榜中....");
+        deleteOldYesterdayRanking();
         //获取昨天的所有学习记录
-        List<Record> recordList = recordService.getYesterdayRecord();
+        List<Record> recordList = recordService.getYesterdaySignedRecordList();
         for(Record record : recordList) {
             YesterdayRankingServiceImpl.log.info("查询到学习记录: {}", record);
         }
@@ -80,6 +79,11 @@ public class YesterdayRankingServiceImpl extends ServiceImpl<YesterdayRankingMap
             YesterdayRankingServiceImpl.log.info("姓名: " + name + " | 学习时长: " + yesterdayRanking.get(name) + "minutes");
         }
         YesterdayRankingServiceImpl.log.info("昨日学习排行榜生成成功!");
+    }
+
+    private void deleteOldYesterdayRanking() {
+        redisTemplate.delete(RedisKey.YESTERDAY_RANKING_KEY);
+        yesterdayRankingMapper.deleteAll();
     }
 
     @Override

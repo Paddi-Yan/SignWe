@@ -8,7 +8,10 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.common.collect.ImmutableMap;
 import com.turing.anotation.RedisLock;
 import com.turing.common.RedisKey;
-import com.turing.entity.*;
+import com.turing.entity.Chairs;
+import com.turing.entity.Door;
+import com.turing.entity.Ranking;
+import com.turing.entity.User;
 import com.turing.entity.vo.SignOutVo;
 import com.turing.entity.vo.SignVo;
 import com.turing.exception.InternalServerException;
@@ -16,25 +19,27 @@ import com.turing.exception.RequestParamValidationException;
 import com.turing.exception.ResourceNotFoundException;
 import com.turing.mapper.ChairsMapper;
 import com.turing.mapper.RankingMapper;
-import com.turing.mapper.RecordMapper;
 import com.turing.mapper.UserMapper;
 import com.turing.service.ChairsService;
 import com.turing.service.DoorService;
+import com.turing.service.RecordService;
 import com.turing.service.UserService;
-import jodd.util.concurrent.ThreadFactoryBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SessionCallback;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 import static com.turing.common.RedisKey.TURING_TEAM;
@@ -58,19 +63,10 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
     private final DoorService doorService;
     private final RedisTemplate redisTemplate;
     private final UserService userService;
-    private final RecordMapper recordMapper;
-
-    private final ExecutorService CACHE_REBUILD_EXECUTOR = Executors.newCachedThreadPool(ThreadFactoryBuilder.create()
-                                                                                                             .setNameFormat("CacheRebuildTask-%s")
-                                                                                                             .get());
-
-    private static final ExecutorService INFO_UPDATE_EXECUTOR = new ThreadPoolExecutor(3, 10, 10, TimeUnit.SECONDS,
-            new LinkedBlockingDeque<>(1024),
-            ThreadFactoryBuilder.create().setNameFormat("InfoUpdateTask-%s").get());
-
-    private static final ExecutorService QUERY_INFO_EXECUTOR = Executors.newCachedThreadPool(ThreadFactoryBuilder.create()
-                                                                                                                 .setNameFormat("InfoQueryTask-%s")
-                                                                                                                 .get());
+    private final TransactionTemplate transactionTemplate;
+    private final RecordService recordService;
+    private final ExecutorService cacheThreadPool;
+    private final ThreadPoolTaskExecutor commonThreadPool;
 
     @Override
     public List<Chairs> getChairsList() {
@@ -80,7 +76,7 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
             Map entries = redisTemplate.opsForHash().entries(key);
             Chairs chairs = BeanUtil.mapToBean(entries, Chairs.class, false);
             chairsList.add(chairs);
-        }, QUERY_INFO_EXECUTOR)).collect(Collectors.toList()).toArray(new CompletableFuture[0])).join();
+        }, cacheThreadPool)).collect(Collectors.toList()).toArray(new CompletableFuture[0])).join();
         if(chairsList != null && !chairsList.isEmpty()) {
             chairsList.sort(Comparator.comparingInt(Chairs :: getId));
             return chairsList;
@@ -89,7 +85,7 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
         if(chairs == null || chairs.isEmpty()) {
             return Collections.emptyList();
         }
-        CACHE_REBUILD_EXECUTOR.execute(() -> chairs.forEach(chair -> {
+        commonThreadPool.execute(() -> chairs.forEach(chair -> {
             log.info("重建缓存:{}", chair);
             Map<String, Object> entry = BeanUtil.beanToMap(chair, new HashMap<>(), false, false);
             redisTemplate.opsForHash().putAll(RedisKey.CHAIRS_HASH_KEY + chair.getId(), entry);
@@ -106,7 +102,7 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
             if(chair == null) {
                 return null;
             }
-            CACHE_REBUILD_EXECUTOR.execute(() -> {
+            commonThreadPool.execute(() -> {
                 List<Chairs> chairs = getBaseMapper().selectList(null);
                 if(chairs == null || chairs.isEmpty()) {
                     return;
@@ -131,17 +127,17 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
             Door door = doorService.getDoorStatus(TURING_TEAM);
             log.info("查询到开门状态信息: {}", door);
             return door;
-        }, QUERY_INFO_EXECUTOR);
+        }, cacheThreadPool);
         CompletableFuture<User> validFuture2 = CompletableFuture.supplyAsync(() -> {
             User user = userService.getByOpenId(signVo.getOpenid());
             log.info("查询到用户信息: {}", user);
             return user;
-        }, QUERY_INFO_EXECUTOR);
+        }, cacheThreadPool);
         CompletableFuture<Chairs> validFuture3 = CompletableFuture.supplyAsync(() -> {
             Chairs chair = getById(signVo.getChairId());
             log.info("查询到座位信息: {}", chair);
             return chair;
-        }, QUERY_INFO_EXECUTOR);
+        }, cacheThreadPool);
         CompletableFuture<ImmutableMap<String, Object>> validAllFuture
                 = CompletableFuture.allOf(validFuture1, validFuture2, validFuture3)
                                    .thenApply(v -> ImmutableMap.of(
@@ -176,7 +172,7 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
         if(signInResult == 0) {
             throw new RequestParamValidationException(ImmutableMap.of("case", "签到占座失败,可能已经被其他人先坐下,请稍后重试或换一个位置签到!"));
         }
-        INFO_UPDATE_EXECUTOR.submit(() -> {
+        commonThreadPool.submit(() -> {
             redisTemplate.opsForHash()
                          .putAll(RedisKey.CHAIRS_HASH_KEY + chair.getId(), BeanUtil.beanToMap(chair, false, false));
             //修改用户签到信息
@@ -203,6 +199,7 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
         return chair;
     }
 
+
     @Transactional(rollbackFor = Exception.class)
     @Override
     public Chairs signOut(SignOutVo signOutVo) throws Exception {
@@ -210,91 +207,73 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
             User result = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User :: getOpenid, signOutVo.getOpenid()));
             log.info("查询用户结果：{}", result);
             return result;
-        }, QUERY_INFO_EXECUTOR);
-        //User user = userMapper.selectOne(new QueryWrapper<User>().eq("openid", signOutVo.getOpenid()));
+        }, cacheThreadPool);
         CompletableFuture<Chairs> queryChairFuture = CompletableFuture.supplyAsync(() -> {
             Chairs result = getById(signOutVo.getChairId());
             log.info("查询到桌子结果：{}", result);
             return result;
-        }, QUERY_INFO_EXECUTOR);
-        //Chairs chair = chairsMapper.selectById(signOutVo.getChairId());
+        }, cacheThreadPool);
         //校验签到状态
         User user = queryUserFuture.join();
         Chairs chair = queryChairFuture.join();
         checkSignInStatus(signOutVo, user, chair);
         updateChairStatus(user, chair);
-        //更新用户信息
-        user.setStatus(User.SIGN_OUT);
+
         LocalDateTime signInTime = user.getFinalStartTime();
         LocalDateTime signOutTime = LocalDateTime.now();
         Integer studyTime = Math.toIntExact(signInTime.until(signOutTime, ChronoUnit.MINUTES));
-        user.setTodayTime(user.getTodayTime() + studyTime);
-        user.setTodayCount(user.getTodayCount() + 1);
-        user.setTotalTime(user.getTotalTime() + studyTime);
-        userService.update(user);
-        log.info("更新用户信息:{}", user);
+
+        //用户签退
+        userService.signOut(user, studyTime);
         //添加学习记录
-        Record record = new Record();
-        record.setChair(chair.getId());
-        record.setDistance(user.getFinalDistance());
-        record.setOpenid(user.getOpenid());
-        record.setName(user.getName());
-        record.setClassname(user.getClassname());
-        record.setFinalStartTime(signInTime);
-        record.setFinalStopTime(signOutTime);
-        record.setStudyTime(studyTime);
-        record.setDeleted(0);
-        recordMapper.insert(record);
-        log.info("添加学习记录:{}", record);
-        INFO_UPDATE_EXECUTOR.execute(() -> {
-            redisTemplate.opsForList().leftPush(RedisKey.RECORD_KEY + user.getOpenid(), record);
-            //更新总排行榜
-            Ranking ranking = (Ranking) redisTemplate.opsForHash()
-                                                     .get(RedisKey.RANKING_HASH_KEY, RedisKey.RANKING_FIELD_KEY + user.getId());
-            if(ranking == null) {
-                ranking = rankingMapper.selectById(user.getId());
-            }
-            //1.之前没有学习记录,排行榜没有该用户
-            if(ranking == null) {
-                ranking = new Ranking(user.getName(), chair.getId(), 1, user.getTotalTime(), User.SIGN_OUT, user.getId());
-                rankingMapper.insert(ranking);
-                final Ranking finalRanking = ranking;
-                redisTemplate.execute(new SessionCallback() {
-                    @Override
-                    public Object execute(RedisOperations redisOperations) throws DataAccessException {
-                        redisOperations.multi();
-                        redisOperations.opsForHash().put(RedisKey.RANKING_HASH_KEY,
-                                RedisKey.RANKING_FIELD_KEY + user.getId(),
-                                finalRanking);
-                        redisOperations.opsForZSet().add(RedisKey.RANKING_ZSET_KEY,
-                                RedisKey.RANKING_FIELD_KEY + user.getId(),
-                                finalRanking.getTotalTime());
-                        return redisOperations.exec();
-                    }
-                });
-            } else {
-                //2.有学习记录,排行榜有该用户
-                ranking.setFinalChair(chair.getId());
-                ranking.setCount(ranking.getCount() + 1);
-                ranking.setTotalTime(user.getTotalTime());
-                ranking.setStatus(User.SIGN_OUT);
-                rankingMapper.updateById(ranking);
-                Ranking finalRankingTwo = ranking;
-                redisTemplate.execute(new SessionCallback() {
-                    @Override
-                    public Object execute(RedisOperations redisOperations) throws DataAccessException {
-                        redisOperations.multi();
-                        redisOperations.opsForHash().put(RedisKey.RANKING_HASH_KEY,
-                                RedisKey.RANKING_FIELD_KEY + user.getId(),
-                                finalRankingTwo);
-                        redisOperations.opsForZSet().incrementScore(RedisKey.RANKING_ZSET_KEY,
-                                RedisKey.RANKING_FIELD_KEY + user.getId(),
-                                studyTime);
-                        return redisOperations.exec();
-                    }
-                });
-            }
-        });
+        recordService.insertRecord(chair, user, signInTime, signOutTime, studyTime);
+
+        //更新总排行榜
+        Ranking ranking = (Ranking) redisTemplate.opsForHash()
+                                                 .get(RedisKey.RANKING_HASH_KEY, RedisKey.RANKING_FIELD_KEY + user.getId());
+        if(ranking == null) {
+            ranking = rankingMapper.selectById(user.getId());
+        }
+        //1.之前没有学习记录,排行榜没有该用户
+        if(ranking == null) {
+            ranking = new Ranking(user.getName(), chair.getId(), 1, user.getTotalTime(), User.SIGN_OUT, user.getId());
+            rankingMapper.insert(ranking);
+            final Ranking finalRanking = ranking;
+            redisTemplate.execute(new SessionCallback() {
+                @Override
+                public Object execute(RedisOperations redisOperations) throws DataAccessException {
+                    redisOperations.multi();
+                    redisOperations.opsForHash().put(RedisKey.RANKING_HASH_KEY,
+                            RedisKey.RANKING_FIELD_KEY + user.getId(),
+                            finalRanking);
+                    redisOperations.opsForZSet().add(RedisKey.RANKING_ZSET_KEY,
+                            RedisKey.RANKING_FIELD_KEY + user.getId(),
+                            finalRanking.getTotalTime());
+                    return redisOperations.exec();
+                }
+            });
+        } else {
+            //2.有学习记录,排行榜有该用户
+            ranking.setFinalChair(chair.getId());
+            ranking.setCount(ranking.getCount() + 1);
+            ranking.setTotalTime(user.getTotalTime());
+            ranking.setStatus(User.SIGN_OUT);
+            rankingMapper.updateById(ranking);
+            Ranking finalRankingTwo = ranking;
+            redisTemplate.execute(new SessionCallback() {
+                @Override
+                public Object execute(RedisOperations redisOperations) throws DataAccessException {
+                    redisOperations.multi();
+                    redisOperations.opsForHash().put(RedisKey.RANKING_HASH_KEY,
+                            RedisKey.RANKING_FIELD_KEY + user.getId(),
+                            finalRankingTwo);
+                    redisOperations.opsForZSet().incrementScore(RedisKey.RANKING_ZSET_KEY,
+                            RedisKey.RANKING_FIELD_KEY + user.getId(),
+                            studyTime);
+                    return redisOperations.exec();
+                }
+            });
+        }
         log.info("签退完毕:{}", chair);
         return chair;
     }
@@ -338,10 +317,20 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
      */
     @Override
     public Chairs signOutForce(SignOutVo signOutVo) throws Exception {
-        User user = userMapper.selectOne(new QueryWrapper<User>().eq("openid", signOutVo.getOpenid()));
-        Chairs chair = chairsMapper.selectById(signOutVo.getChairId());
+        CompletableFuture<User> queryUserFuture = CompletableFuture.supplyAsync(() -> {
+            User result = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User :: getOpenid, signOutVo.getOpenid()));
+            log.info("查询用户结果：{}", result);
+            return result;
+        }, cacheThreadPool);
+        CompletableFuture<Chairs> queryChairFuture = CompletableFuture.supplyAsync(() -> {
+            Chairs result = getById(signOutVo.getChairId());
+            log.info("查询到桌子结果：{}", result);
+            return result;
+        }, cacheThreadPool);
+        User user = queryUserFuture.join();
+        Chairs chair = queryChairFuture.join();
         //校验签到状态
-        ChairsServiceImpl.checkSignInStatus(signOutVo, user, chair);
+        checkSignInStatus(signOutVo, user, chair);
         //更新座位信息
         updateChairStatus(user, chair);
         //更新用户信息

@@ -53,7 +53,6 @@ public class ScheduledSpringTask {
      * 补充:清除Redis中的昨日学习记录,但是会持久化在MySQL,提高Redis的缓存命中率,因为这部分缓存更新完昨日排行榜
      * 之后就不会再用到
      */
-
     @Scheduled(cron = "30 30 23 * * ? ")
     public void closeDoorTask() throws InterruptedException {
         Door door = doorService.getDoorStatus(ID);
@@ -92,5 +91,7 @@ public class ScheduledSpringTask {
         yesterdayRecordService.generateYesterdayRanking();
     }
 
+    //TODO 每个月清除上个月签到记录 也可以不要再看吧
+    //TODO 每个天清除签到记录
 
 }

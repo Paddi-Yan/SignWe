@@ -19,4 +19,6 @@ public interface UserService extends IService<User> {
     User register(RegisterVo registerVo);
 
     User update(User user);
+
+    void signOut(User user, Integer studyTime);
 }

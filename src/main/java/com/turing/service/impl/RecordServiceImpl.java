@@ -1,9 +1,10 @@
 package com.turing.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.common.collect.ImmutableMap;
 import com.turing.common.RedisKey;
+import com.turing.entity.Chairs;
 import com.turing.entity.Record;
 import com.turing.entity.User;
 import com.turing.exception.AuthenticationException;
@@ -11,17 +12,19 @@ import com.turing.exception.RequestParamValidationException;
 import com.turing.mapper.RecordMapper;
 import com.turing.service.RecordService;
 import com.turing.service.UserService;
-import org.springframework.dao.DataAccessException;
-import org.springframework.data.redis.core.RedisOperations;
+import com.turing.utils.TimeUtils;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.DefaultTypedTuple;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.SessionCallback;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -32,21 +35,15 @@ import java.util.Set;
  * @since 2022-10-29
  */
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> implements RecordService {
 
-    @Resource
-    private RecordMapper recordMapper;
+    private final RecordMapper recordMapper;
+    private final RedisTemplate redisTemplate;
+    private final UserService userService;
 
-    @Resource
-    private RedisTemplate redisTemplate;
-
-    @Resource
-    private UserService userService;
-
-    @Override
-    public Boolean insertRecord(Record record, String userId) {
-        return false;
-    }
+    private final ExecutorService cacheThreadPool;
 
     @Override
     public List<Record> getRecordByUser(String id) {
@@ -69,10 +66,18 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
         return recordList;
     }
 
+    private List<Record> getYesterdaySignedRecord(String userId) {
+        long max = System.currentTimeMillis();
+        LocalDateTime yesterday = LocalDateTime.now().minusDays(1);
+        long min = TimeUtils.getTimeInMillis(yesterday);
+        Set<Record> records = redisTemplate.opsForZSet().range(RedisKey.RECORD_KEY + userId, min, max);
+        return new ArrayList<>(records);
+    }
+
     @Override
-    public List<Record> getYesterdayRecord() {
+    public List<Record> getYesterdaySignedRecordList() {
         List<Record> recordList = new ArrayList<>();
-        Set<String> keys = redisTemplate.keys(RedisKey.RECORD_KEY + "*");
+/*        Set<String> keys = redisTemplate.keys(RedisKey.RECORD_KEY + "*");
         for(String recordKey : keys) {
             String openid = recordKey.replace(RedisKey.RECORD_KEY, "");
             User user = userService.getByOpenId(openid);
@@ -83,26 +88,45 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
                 user.setTodayTime(0);
                 userService.update(user);
             }
+        }*/
+        LocalDateTime yesterdayTime = LocalDateTime.now().minusDays(1);
+        String todaySignMemberKey = RedisKey.DAY_STATISTICS_KEY + yesterdayTime.format(DateTimeFormatter.ofPattern(":yyyy/MM/DD"));
+        log.info("今日签到用户集合Key：{}", todaySignMemberKey);
+        Set<String> todaySignMemberIds = redisTemplate.opsForSet().members(todaySignMemberKey);
+        if(todaySignMemberIds == null || todaySignMemberIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        for(String userId : todaySignMemberIds) {
+            List<Record> yesterdaySignedRecord = getYesterdaySignedRecord(userId);
+            if(yesterdaySignedRecord != null && yesterdaySignedRecord.isEmpty()) {
+                recordList.addAll(yesterdaySignedRecord);
+            }
+            User user = userService.getById(userId);
+            user.setTodayCount(0);
+            user.setTodayTime(0);
+            userService.update(user);
         }
         if(!recordList.isEmpty()) {
             return recordList;
         }
-        LocalDateTime yesterdayTime = LocalDateTime.now().minusDays(1);
-        recordList = recordMapper.selectList(new QueryWrapper<Record>().ge("final_stop_time", yesterdayTime)
-                                                                       .orderByAsc("final_stop_time"));
-        if(!recordList.isEmpty()) {
-            List<Record> finalRecordList = recordList;
-            redisTemplate.execute(new SessionCallback() {
-                @Override
-                public Object execute(RedisOperations redisOperations) throws DataAccessException {
-                    redisOperations.multi();
-                    for(Record record : finalRecordList) {
-                        redisOperations.opsForList().leftPush(RedisKey.RECORD_KEY + record.getOpenid(), record);
-                    }
-                    return redisOperations.exec();
-                }
-            });
+        recordList = recordMapper.selectList(new LambdaQueryWrapper<Record>().ge(Record :: getFinalStopTime, yesterdayTime));
+        if(recordList == null || recordList.isEmpty()) {
+            return Collections.emptyList();
         }
+        log.error("学习记录缓存与数据库出现不一致,即将进行缓存重建");
+        cacheThreadPool.execute(() -> {
+            //执行这里的缓存重建的条件为：[缓存]中[查询不到]所有今日[有签到记录]的人的学习记录 && 数据库能查到记录 => 缓存和数据库出现不一致
+            List<Record> rebuildRecords = recordMapper.selectList(new LambdaQueryWrapper<Record>().eq(Record :: getDeleted, 0));
+            Map<String, List<Record>> userToRecord = rebuildRecords.stream()
+                                                                   .collect(Collectors.groupingBy(Record :: getUserId));
+            for(Map.Entry<String, List<Record>> entry : userToRecord.entrySet()) {
+                HashSet<ZSetOperations.TypedTuple> typedTuples = new HashSet<>();
+                for(Record record : entry.getValue()) {
+                    typedTuples.add(new DefaultTypedTuple(record, (double) TimeUtils.getTimeInMillis(record.getFinalStopTime())));
+                }
+                redisTemplate.opsForZSet().add(RedisKey.RECORD_KEY + entry.getKey(), typedTuples);
+            }
+        });
         return recordList;
     }
 
@@ -112,5 +136,25 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
         redisTemplate.delete(redisTemplate.keys(RedisKey.RECORD_KEY + "*"));
         //逻辑删除Mysql中的记录
         recordMapper.delete(null);
+    }
+
+    @Override
+    public void insertRecord(Chairs chair,
+                             User user,
+                             LocalDateTime signInTime,
+                             LocalDateTime signOutTime,
+                             Integer studyTime) {
+        Record record = new Record();
+        record.setChair(chair.getId());
+        record.setDistance(user.getFinalDistance());
+        record.setOpenid(user.getOpenid());
+        record.setName(user.getName());
+        record.setClassname(user.getClassname());
+        record.setFinalStartTime(signInTime);
+        record.setFinalStopTime(signOutTime);
+        record.setStudyTime(studyTime);
+        recordMapper.insert(record);
+        log.info("添加学习记录:{}", record);
+        redisTemplate.opsForZSet().add(RedisKey.RECORD_KEY + user.getId(), record, System.currentTimeMillis());
     }
 }

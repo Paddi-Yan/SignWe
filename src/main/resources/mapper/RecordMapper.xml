@@ -8,6 +8,7 @@
         <result column="chair" property="chair"/>
         <result column="distance" property="distance"/>
         <result column="openid" property="openid"/>
+        <result column="user_id" property="userId"/>
         <result column="name" property="name"/>
         <result column="classname" property="classname"/>
         <result column="final_start_time" property="finalStartTime"/>
@@ -16,8 +17,14 @@
         <result column="deleted" property="deleted"/>
     </resultMap>
 
-    <select id="getByUser" parameterType="com.turing.entity.User" resultMap="BaseResultMap" resultType="com.turing.entity.Record">
-        select * from sys_record where classname = #{classname} and name = #{name} and deleted = 0 order by final_stop_time desc;
+    <select id="getByUser" parameterType="com.turing.entity.User" resultMap="BaseResultMap"
+            resultType="com.turing.entity.Record">
+        select *
+        from sys_record
+        where classname = #{classname}
+          and name = #{name}
+          and deleted = 0
+        order by final_stop_time desc;
     </select>
 
 </mapper>
