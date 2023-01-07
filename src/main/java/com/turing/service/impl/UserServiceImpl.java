@@ -76,7 +76,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     public void signOut(User user, Integer studyTime) {
-        user.setStatus(User.SIGN_IN);
+        user.setStatus(User.SIGN_OUT);
         user.setTodayTime(user.getTodayTime() + studyTime);
         user.setTodayCount(user.getTodayCount() + 1);
         user.setTotalTime(user.getTotalTime() + studyTime);

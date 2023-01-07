@@ -26,8 +26,8 @@ public class SignStatisticsServiceImpl implements SignStatisticsService {
     public void count(String userId) {
         LocalDateTime now = LocalDateTime.now();
         //今日签到用户集合
-        String key = RedisKey.DAY_STATISTICS_KEY + now.format(DateTimeFormatter.ofPattern(":yyyy/MM/DD"));
-        String monthKeySuffix = now.format(DateTimeFormatter.ofPattern(":yyyy/MM"));
+        String key = RedisKey.DAY_STATISTICS_KEY + now.format(DateTimeFormatter.ofPattern("yyyy/MM/DD"));
+        String monthKeySuffix = now.format(DateTimeFormatter.ofPattern("yyyy/MM"));
         if(!redisTemplate.opsForSet().isMember(key, userId)) {
             redisTemplate.opsForSet().add(key, userId);
             redisTemplate.opsForValue()

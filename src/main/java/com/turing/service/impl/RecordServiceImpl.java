@@ -153,6 +153,7 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
         record.setFinalStartTime(signInTime);
         record.setFinalStopTime(signOutTime);
         record.setStudyTime(studyTime);
+        record.setUserId(user.getId());
         recordMapper.insert(record);
         log.info("添加学习记录:{}", record);
         redisTemplate.opsForZSet().add(RedisKey.RECORD_KEY + user.getId(), record, System.currentTimeMillis());

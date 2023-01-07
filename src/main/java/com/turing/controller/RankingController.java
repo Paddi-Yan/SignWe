@@ -1,16 +1,18 @@
 package com.turing.controller;
 
 
+import cn.hutool.core.collection.CollectionUtil;
 import com.turing.common.Result;
+import com.turing.entity.Ranking;
 import com.turing.service.RankingService;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
+import java.util.List;
 
 /**
  * <p>
@@ -31,7 +33,8 @@ public class RankingController {
     @ResponseBody
     @GetMapping("/get")
     public Result getRanking() {
-        return Result.success(service.getRanking());
+        List<Ranking> result = service.getRanking();
+        return Result.success(CollectionUtil.isEmpty(result) ? "暂无人上榜" : result);
     }
 }
 

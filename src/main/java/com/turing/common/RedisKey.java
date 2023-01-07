@@ -14,6 +14,8 @@ public class RedisKey {
 
     public static final String RANKING_ZSET_KEY = KEY_PREFIX + "ranking_zset";
 
+    public static final String TOTAL_RANKING_KEY = KEY_PREFIX + "ranking";
+
     public static final String YESTERDAY_RANKING_KEY = KEY_PREFIX + "yesterday_ranking";
 
     public static final String RECORD_KEY = KEY_PREFIX + "record:";

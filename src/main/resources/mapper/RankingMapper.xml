@@ -6,14 +6,13 @@
     <resultMap id="BaseResultMap" type="com.turing.entity.Ranking">
         <id column="id" property="id"/>
         <result column="name" property="name"/>
-        <result column="final_chair" property="finalChair"/>
-        <result column="count" property="count"/>
-        <result column="total_time" property="totalTime"/>
-        <result column="status" property="status"/>
+        <result column="openid" property="openid"/>
     </resultMap>
 
     <select id="getRanking" resultType="com.turing.entity.Ranking">
-        select * from sys_ranking order by total_time DESC;
+        select *
+        from sys_ranking
+        order by total_time DESC;
     </select>
 
 </mapper>

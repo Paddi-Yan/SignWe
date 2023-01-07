@@ -1,6 +1,6 @@
 package com.turing.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import cn.hutool.core.collection.CollectionUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.github.xiaolyuh.annotation.Cacheable;
 import com.github.xiaolyuh.annotation.FirstCache;
@@ -13,18 +13,19 @@ import com.turing.mapper.YesterdayRankingMapper;
 import com.turing.service.RecordService;
 import com.turing.service.YesterdayRankingService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataAccessException;
-import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.SessionCallback;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
-import java.util.HashMap;
-import java.util.LinkedList;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -50,35 +51,20 @@ public class YesterdayRankingServiceImpl extends ServiceImpl<YesterdayRankingMap
     @Override
     public void generateYesterdayRanking() {
         //生成昨日排行榜之前需要对之前的数据进行清除
-        log.info("生成昨日学习排行榜中....");
         deleteOldYesterdayRanking();
         //获取昨天的所有学习记录
         List<Record> recordList = recordService.getYesterdaySignedRecordList();
-        for(Record record : recordList) {
-            YesterdayRankingServiceImpl.log.info("查询到学习记录: {}", record);
-        }
-        HashMap<String, Integer> yesterdayRanking = new HashMap<>();
-
-        redisTemplate.execute(new SessionCallback() {
-            @Override
-            public Object execute(RedisOperations redisOperations) throws DataAccessException {
-                redisOperations.multi();
-                for(Record record : recordList) {
-                    redisOperations.opsForZSet()
-                                   .incrementScore(RedisKey.YESTERDAY_RANKING_KEY, record.getName(), record.getStudyTime());
-                    yesterdayRanking.put(record.getName(), yesterdayRanking.getOrDefault(record.getName(), 0) + record.getStudyTime());
-                }
-                return redisOperations.exec();
+        if(recordList != null && !recordList.isEmpty()) {
+            log.info("开始结算[{}]学习排行榜", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy:MM:dd")));
+            Map<String, Integer> yesterdayRanking = recordList.stream()
+                                                              .collect(Collectors.toMap(Record :: getName, Record :: getStudyTime, (value1, value2) -> value1 + value2));
+            for(Map.Entry<String, Integer> entry : yesterdayRanking.entrySet()) {
+                log.info("今日学习记录=>[{}: {}minutes]", entry.getKey(), entry.getValue());
+                yesterdayRankingMapper.insert(new YesterdayRanking(entry.getValue(), entry.getKey()));
+                redisTemplate.opsForZSet()
+                             .incrementScore(RedisKey.YESTERDAY_RANKING_KEY, entry.getKey(), entry.getValue());
             }
-        });
-        for(String name : yesterdayRanking.keySet()) {
-            YesterdayRanking entity = new YesterdayRanking();
-            entity.setUsername(name);
-            entity.setStudyTime(yesterdayRanking.get(name));
-            yesterdayRankingMapper.insert(entity);
-            YesterdayRankingServiceImpl.log.info("姓名: " + name + " | 学习时长: " + yesterdayRanking.get(name) + "minutes");
         }
-        YesterdayRankingServiceImpl.log.info("昨日学习排行榜生成成功!");
     }
 
     private void deleteOldYesterdayRanking() {
@@ -90,28 +76,18 @@ public class YesterdayRankingServiceImpl extends ServiceImpl<YesterdayRankingMap
     @Cacheable(cacheNames = RedisKey.YESTERDAY_RANKING_KEY, key = "#id", depict = "昨日学习排行榜缓存", cacheMode = CacheMode.ALL,
             firstCache = @FirstCache(initialCapacity = 1, maximumSize = 1, expireTime = 15, timeUnit = TimeUnit.HOURS),
             secondaryCache = @SecondaryCache(expireTime = 15, timeUnit = TimeUnit.HOURS, forceRefresh = true))
-    public LinkedList<YesterdayRanking> getRanking(String id) {
-        Set<String> nameList = redisTemplate.opsForZSet().range(RedisKey.YESTERDAY_RANKING_KEY, 0, -1);
-        LinkedList<YesterdayRanking> result = new LinkedList<>();
-        for(String name : nameList) {
-            int studyTime = redisTemplate.opsForZSet().score(RedisKey.YESTERDAY_RANKING_KEY, name).intValue();
-            YesterdayRanking yesterdayRanking = new YesterdayRanking(studyTime, name);
-            result.addFirst(yesterdayRanking);
+    public List<YesterdayRanking> getRanking(String id) {
+        Set<ZSetOperations.TypedTuple> typedTuples = redisTemplate.opsForZSet()
+                                                                  .reverseRangeWithScores(RedisKey.YESTERDAY_RANKING_KEY, 0, 4);
+        if(CollectionUtil.isEmpty(typedTuples)) {
+            return Collections.emptyList();
         }
-        if(result.isEmpty()) {
-            List<YesterdayRanking> rankings = yesterdayRankingMapper.selectList(new QueryWrapper<YesterdayRanking>().orderByDesc("study_time"));
-            result.addAll(rankings);
-            redisTemplate.execute(new SessionCallback() {
-                @Override
-                public Object execute(RedisOperations redisOperations) throws DataAccessException {
-                    redisOperations.multi();
-                    for(YesterdayRanking ranking : rankings) {
-                        redisOperations.opsForZSet()
-                                       .add(RedisKey.YESTERDAY_RANKING_KEY, ranking.getUsername(), ranking.getStudyTime());
-                    }
-                    return redisOperations.exec();
-                }
-            });
+        List<YesterdayRanking> result = typedTuples.stream()
+                                                   .map(typedTuple -> new YesterdayRanking(typedTuple.getScore()
+                                                                                                     .intValue(), String.valueOf(typedTuple.getValue())))
+                                                   .collect(Collectors.toList());
+        if(CollectionUtil.isEmpty(result)) {
+            result = baseMapper.selectList(null);
         }
         return result;
     }

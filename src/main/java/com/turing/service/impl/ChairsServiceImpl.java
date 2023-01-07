@@ -3,36 +3,25 @@ package com.turing.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.map.MapUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.common.collect.ImmutableMap;
 import com.turing.anotation.RedisLock;
 import com.turing.common.RedisKey;
 import com.turing.entity.Chairs;
 import com.turing.entity.Door;
-import com.turing.entity.Ranking;
 import com.turing.entity.User;
 import com.turing.entity.vo.SignOutVo;
 import com.turing.entity.vo.SignVo;
 import com.turing.exception.InternalServerException;
 import com.turing.exception.RequestParamValidationException;
-import com.turing.exception.ResourceNotFoundException;
 import com.turing.mapper.ChairsMapper;
-import com.turing.mapper.RankingMapper;
 import com.turing.mapper.UserMapper;
-import com.turing.service.ChairsService;
-import com.turing.service.DoorService;
-import com.turing.service.RecordService;
-import com.turing.service.UserService;
+import com.turing.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataAccessException;
-import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
@@ -58,7 +47,7 @@ import static com.turing.common.RedisKey.TURING_TEAM;
 public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> implements ChairsService {
 
     private final ChairsMapper chairsMapper;
-    private final RankingMapper rankingMapper;
+    private final RankingService rankingService;
     private final UserMapper userMapper;
     private final DoorService doorService;
     private final RedisTemplate redisTemplate;
@@ -121,7 +110,6 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
 
     @Override
     @RedisLock(lockName = "signIn", key = "#signVo.openid")
-    @Transactional(rollbackFor = Exception.class)
     public Chairs signIn(SignVo signVo) throws Exception {
         CompletableFuture<Door> validFuture1 = CompletableFuture.supplyAsync(() -> {
             Door door = doorService.getDoorStatus(TURING_TEAM);
@@ -138,41 +126,53 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
             log.info("查询到座位信息: {}", chair);
             return chair;
         }, cacheThreadPool);
-        CompletableFuture<ImmutableMap<String, Object>> validAllFuture
-                = CompletableFuture.allOf(validFuture1, validFuture2, validFuture3)
-                                   .thenApply(v -> ImmutableMap.of(
-                                           "door", validFuture1.join(),
-                                           "user", validFuture2.join(),
-                                           "chair", validFuture3.join()));
-        ImmutableMap<String, Object> map = validAllFuture.join();
-        Door door = (Door) map.get("door");
-        User user = (User) map.get("user");
-        Chairs chair = (Chairs) map.get("chair");
-        if(!door.getOpen()) {
-            throw new RequestParamValidationException(ImmutableMap.of("cause", "请开门后再进行签到"));
+        CompletableFuture<Map<String, Object>> validFuture = CompletableFuture.allOf(validFuture1, validFuture2, validFuture3)
+                                                                              .thenApply((v) -> {
+                                                                                  Door door = validFuture1.join();
+                                                                                  User user = validFuture2.join();
+                                                                                  Chairs chair = validFuture3.join();
+                                                                                  if(!door.getOpen()) {
+                                                                                      return ImmutableMap.of("cause", "请开门后再进行签到");
+                                                                                  }
+                                                                                  if(user == null) {
+                                                                                      return ImmutableMap.of("cause", "用户不存在", "openid", signVo.getOpenid());
+                                                                                  }
+                                                                                  if(User.SIGN_IN.equals(user.getStatus())) {
+                                                                                      return ImmutableMap.of("cause", "已处于签到状态,无法再次签到", "userStatus", user.getStatus());
+                                                                                  }
+                                                                                  if(chair == null) {
+                                                                                      return ImmutableMap.of("cause", "无法匹配到对应签到位置", "chairId", signVo.getChairId());
+                                                                                  }
+                                                                                  if(!chair.getIsEmpty()) {
+                                                                                      return ImmutableMap.of("cause", "当前位置已经被占用", "chairStatus", chair.getIsEmpty());
+                                                                                  }
+                                                                                  return ImmutableMap.of("chair", chair, "user", user);
+                                                                              });
+        Map<String, Object> validResult = validFuture.join();
+        if(Objects.nonNull(validResult.get("cause"))) {
+            throw new RequestParamValidationException(validResult);
         }
-        if(user == null) {
-            throw new ResourceNotFoundException(ImmutableMap.of("cause", "用户不存在", "openid", signVo.getOpenid()));
-        }
-        if(User.SIGN_IN.equals(user.getStatus())) {
-            throw new RequestParamValidationException(ImmutableMap.of("cause", "已处于签到状态,无法再次签到", "userStatus", user.getStatus()));
-        }
-        if(chair == null) {
-            throw new RequestParamValidationException(ImmutableMap.of("cause", "无法匹配到对应签到位置", "chairId", signVo.getChairId()));
-        }
-        if(!chair.getIsEmpty()) {
-            throw new RequestParamValidationException(ImmutableMap.of("cause", "当前位置已经被占用", "chairStatus", chair.getIsEmpty()));
-        }
-        //使用乐观锁
-        //修改座位信息
+        User user = (User) validResult.get("user");
+        Chairs chair = (Chairs) validResult.get("chair");
+        //CAS修改座位信息
         chair.setOpenId(signVo.getOpenid());
         chair.setIsEmpty(false);
         chair.setLastUsedName(user.getName());
-        int signInResult = chairsMapper.updateById(chair);
+        int signInResult = transactionTemplate.execute(transactionStatus -> {
+            int count = 0;
+            try {
+                count = chairsMapper.updateById(chair);
+            } catch(Exception e) {
+                log.error("用户{}签到失败: {}", user, chair);
+                transactionStatus.setRollbackOnly();
+            }
+            return count;
+        });
         if(signInResult == 0) {
             throw new RequestParamValidationException(ImmutableMap.of("case", "签到占座失败,可能已经被其他人先坐下,请稍后重试或换一个位置签到!"));
         }
         commonThreadPool.submit(() -> {
+            //修改位置缓存信息
             redisTemplate.opsForHash()
                          .putAll(RedisKey.CHAIRS_HASH_KEY + chair.getId(), BeanUtil.beanToMap(chair, false, false));
             //修改用户签到信息
@@ -181,27 +181,14 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
             user.setFinalStartTime(LocalDateTime.now());
             user.setStatus(User.SIGN_IN);
             userService.update(user);
-            //修改排行榜上的学习状态
-            Ranking userOfRanking = (Ranking) redisTemplate.opsForHash()
-                                                           .get(RedisKey.RANKING_HASH_KEY, RedisKey.RANKING_FIELD_KEY + user.getId());
-            if(userOfRanking == null) {
-                userOfRanking = rankingMapper.selectOne(new QueryWrapper<Ranking>().eq("id", user.getId()));
-            }
-            if(userOfRanking != null) {
-                userOfRanking.setStatus(User.SIGN_IN);
-                redisTemplate.opsForHash()
-                             .put(RedisKey.RANKING_HASH_KEY, RedisKey.RANKING_FIELD_KEY + user.getId(), userOfRanking);
-                rankingMapper.updateById(userOfRanking);
-            }
         });
-
         log.info("签到信息: {}", chair);
         return chair;
     }
 
 
-    @Transactional(rollbackFor = Exception.class)
     @Override
+    @RedisLock(lockName = "signOut", key = "#signOutVo.openid")
     public Chairs signOut(SignOutVo signOutVo) throws Exception {
         CompletableFuture<User> queryUserFuture = CompletableFuture.supplyAsync(() -> {
             User result = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User :: getOpenid, signOutVo.getOpenid()));
@@ -217,64 +204,28 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
         User user = queryUserFuture.join();
         Chairs chair = queryChairFuture.join();
         checkSignInStatus(signOutVo, user, chair);
-        updateChairStatus(user, chair);
 
         LocalDateTime signInTime = user.getFinalStartTime();
         LocalDateTime signOutTime = LocalDateTime.now();
         Integer studyTime = Math.toIntExact(signInTime.until(signOutTime, ChronoUnit.MINUTES));
 
-        //用户签退
-        userService.signOut(user, studyTime);
-        //添加学习记录
-        recordService.insertRecord(chair, user, signInTime, signOutTime, studyTime);
-
-        //更新总排行榜
-        Ranking ranking = (Ranking) redisTemplate.opsForHash()
-                                                 .get(RedisKey.RANKING_HASH_KEY, RedisKey.RANKING_FIELD_KEY + user.getId());
-        if(ranking == null) {
-            ranking = rankingMapper.selectById(user.getId());
-        }
-        //1.之前没有学习记录,排行榜没有该用户
-        if(ranking == null) {
-            ranking = new Ranking(user.getName(), chair.getId(), 1, user.getTotalTime(), User.SIGN_OUT, user.getId());
-            rankingMapper.insert(ranking);
-            final Ranking finalRanking = ranking;
-            redisTemplate.execute(new SessionCallback() {
-                @Override
-                public Object execute(RedisOperations redisOperations) throws DataAccessException {
-                    redisOperations.multi();
-                    redisOperations.opsForHash().put(RedisKey.RANKING_HASH_KEY,
-                            RedisKey.RANKING_FIELD_KEY + user.getId(),
-                            finalRanking);
-                    redisOperations.opsForZSet().add(RedisKey.RANKING_ZSET_KEY,
-                            RedisKey.RANKING_FIELD_KEY + user.getId(),
-                            finalRanking.getTotalTime());
-                    return redisOperations.exec();
-                }
-            });
-        } else {
-            //2.有学习记录,排行榜有该用户
-            ranking.setFinalChair(chair.getId());
-            ranking.setCount(ranking.getCount() + 1);
-            ranking.setTotalTime(user.getTotalTime());
-            ranking.setStatus(User.SIGN_OUT);
-            rankingMapper.updateById(ranking);
-            Ranking finalRankingTwo = ranking;
-            redisTemplate.execute(new SessionCallback() {
-                @Override
-                public Object execute(RedisOperations redisOperations) throws DataAccessException {
-                    redisOperations.multi();
-                    redisOperations.opsForHash().put(RedisKey.RANKING_HASH_KEY,
-                            RedisKey.RANKING_FIELD_KEY + user.getId(),
-                            finalRankingTwo);
-                    redisOperations.opsForZSet().incrementScore(RedisKey.RANKING_ZSET_KEY,
-                            RedisKey.RANKING_FIELD_KEY + user.getId(),
-                            studyTime);
-                    return redisOperations.exec();
-                }
-            });
-        }
-        log.info("签退完毕:{}", chair);
+        transactionTemplate.execute((status) -> {
+            try {
+                //更新座位信息
+                updateChairStatus(user, chair);
+                //用户签退
+                userService.signOut(user, studyTime);
+                //添加学习记录
+                recordService.insertRecord(chair, user, signInTime, signOutTime, studyTime);
+                //更新总排行榜
+                rankingService.updateRanking(user.getId(), user.getOpenid(), studyTime);
+                log.info("签退完毕:{}", chair);
+            } catch(Exception e) {
+                log.error("用户[{}]签退失败:{}", user, chair);
+                status.setRollbackOnly();
+            }
+            return Boolean.TRUE;
+        });
         return chair;
     }
 
@@ -290,14 +241,14 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
                          .putAll(RedisKey.CHAIRS_HASH_KEY + chair.getId(), ImmutableMap.of("isEmpty", true, "version", chair.getVersion()));
             return resultOfSignOut;
         } else {
-            ChairsServiceImpl.log.error("用户" + user.getClassname() + user.getName() + "签退失败!");
-            throw new InternalServerException();
+            log.error("用户" + user.getClassname() + user.getName() + "签退失败!");
+            throw new InternalServerException(ImmutableMap.of("cause", "签退失败"));
         }
     }
 
     private static void checkSignInStatus(SignOutVo signOutVo, User user, Chairs chair) throws Exception {
         if(user == null || chair == null) {
-            throw new RequestParamValidationException(ImmutableMap.of("openid:", user.getOpenid(), "chairId", chair.getId()));
+            throw new RequestParamValidationException(ImmutableMap.of("cause", "用户信息或位置信息为空"));
         }
         if(!User.SIGN_IN.equals(user.getStatus())) {
             throw new RequestParamValidationException(ImmutableMap.of("userStatus", user.getStatus()));
