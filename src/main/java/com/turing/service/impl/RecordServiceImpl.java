@@ -1,9 +1,11 @@
 package com.turing.service.impl;
 
+import cn.hutool.core.collection.CollectionUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.common.collect.ImmutableMap;
 import com.turing.common.RedisKey;
+import com.turing.common.ScrollResult;
 import com.turing.entity.Chairs;
 import com.turing.entity.Record;
 import com.turing.entity.User;
@@ -19,6 +21,7 @@ import org.springframework.data.redis.core.DefaultTypedTuple;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -71,24 +74,15 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
         LocalDateTime yesterday = LocalDateTime.now().minusDays(1);
         long min = TimeUtils.getTimeInMillis(yesterday);
         Set<Record> records = redisTemplate.opsForZSet().range(RedisKey.RECORD_KEY + userId, min, max);
-        return new ArrayList<>(records);
+        if(CollectionUtil.isNotEmpty(records)) {
+            return new ArrayList<>(records);
+        }
+        return Collections.emptyList();
     }
 
     @Override
     public List<Record> getYesterdaySignedRecordList() {
         List<Record> recordList = new ArrayList<>();
-/*        Set<String> keys = redisTemplate.keys(RedisKey.RECORD_KEY + "*");
-        for(String recordKey : keys) {
-            String openid = recordKey.replace(RedisKey.RECORD_KEY, "");
-            User user = userService.getByOpenId(openid);
-            if(user != null && user.getTodayCount() >= 1 && user.getTodayTime() >= 1) {
-                List<Record> records = redisTemplate.opsForList().range(recordKey, 0, user.getTodayCount() - 1);
-                recordList.addAll(records);
-                user.setTodayCount(0);
-                user.setTodayTime(0);
-                userService.update(user);
-            }
-        }*/
         LocalDateTime yesterdayTime = LocalDateTime.now().minusDays(1);
         String todaySignMemberKey = RedisKey.DAY_STATISTICS_KEY + yesterdayTime.format(DateTimeFormatter.ofPattern(":yyyy/MM/DD"));
         log.info("今日签到用户集合Key：{}", todaySignMemberKey);
@@ -98,7 +92,7 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
         }
         for(String userId : todaySignMemberIds) {
             List<Record> yesterdaySignedRecord = getYesterdaySignedRecord(userId);
-            if(yesterdaySignedRecord != null && yesterdaySignedRecord.isEmpty()) {
+            if(CollectionUtil.isNotEmpty(yesterdaySignedRecord)) {
                 recordList.addAll(yesterdaySignedRecord);
             }
             User user = userService.getById(userId);
@@ -138,6 +132,7 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
         recordMapper.delete(null);
     }
 
+    @Transactional
     @Override
     public void insertRecord(Chairs chair,
                              User user,
@@ -157,5 +152,33 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
         recordMapper.insert(record);
         log.info("添加学习记录:{}", record);
         redisTemplate.opsForZSet().add(RedisKey.RECORD_KEY + user.getId(), record, System.currentTimeMillis());
+    }
+
+    @Override
+    public ScrollResult<Record> getByScrollWithUserId(String userId, Long max, Long offset) {
+        User user = userService.getById(userId);
+        if(user == null) {
+            throw new RequestParamValidationException(ImmutableMap.of("cause", "用户不存在"));
+        }
+        max = (max <= 0 ? System.currentTimeMillis() : max);
+        Set<ZSetOperations.TypedTuple> typedTuples = redisTemplate.opsForZSet()
+                                                                  .reverseRangeByScoreWithScores(RedisKey.RECORD_KEY + userId, 0, max, offset, 5);
+        ScrollResult<Record> scrollResult = new ScrollResult<>();
+        if(CollectionUtil.isEmpty(typedTuples)) {
+            scrollResult.setData(Collections.emptyList());
+            scrollResult.setHasData(false);
+            return scrollResult;
+        }
+        long minTime = 0;
+        List<Record> data = new ArrayList<>(typedTuples.size());
+        for(ZSetOperations.TypedTuple typedTuple : typedTuples) {
+            minTime = typedTuple.getScore().longValue();
+            data.add((Record) typedTuple.getValue());
+        }
+        scrollResult.setData(data);
+        scrollResult.setHasData(true);
+        scrollResult.setMinTime(minTime);
+        scrollResult.setOffset(1L);
+        return scrollResult;
     }
 }

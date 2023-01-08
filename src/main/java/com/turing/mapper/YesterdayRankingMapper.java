@@ -1,9 +1,11 @@
 package com.turing.mapper;
 
-import com.turing.entity.YesterdayRanking;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.turing.entity.YesterdayRanking;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Update;
+
+import java.util.List;
 
 /**
  * <p>
@@ -21,4 +23,6 @@ public interface YesterdayRankingMapper extends BaseMapper<YesterdayRanking> {
      */
     @Update("truncate table sys_yesterday_ranking")
     void deleteAll();
+
+    List<YesterdayRanking> getRanking();
 }

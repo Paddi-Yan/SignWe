@@ -1,6 +1,7 @@
 package com.turing.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.turing.common.ScrollResult;
 import com.turing.entity.Chairs;
 import com.turing.entity.Record;
 import com.turing.entity.User;
@@ -26,4 +27,6 @@ public interface RecordService extends IService<Record> {
     void deleteLogical();
 
     void insertRecord(Chairs chair, User user, LocalDateTime signInTime, LocalDateTime signOutTime, Integer studyTime);
+
+    ScrollResult<Record> getByScrollWithUserId(String userId, Long max, Long offset);
 }

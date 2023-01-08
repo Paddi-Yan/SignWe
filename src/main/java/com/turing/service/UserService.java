@@ -21,4 +21,6 @@ public interface UserService extends IService<User> {
     User update(User user);
 
     void signOut(User user, Integer studyTime);
+
+    User getByName(String username);
 }

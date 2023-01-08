@@ -83,4 +83,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         update(user);
         signStatisticsService.count(user.getId());
     }
+
+    @Override
+    public User getByName(String username) {
+        User user = baseMapper.selectOne(new LambdaQueryWrapper<User>().eq(User :: getName, username));
+        return user;
+    }
 }

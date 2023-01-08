@@ -65,33 +65,30 @@ public class ScheduledSpringTask {
 
     @Scheduled(cron = "00 30 23 * * ? ")
     public void autoSignOut() throws InterruptedException {
-        ScheduledSpringTask.log.info("下班时间到,青蒜签到时间中....");
         List<Chairs> chairsList = chairsService.getChairsList();
         for(Chairs chair : chairsList) {
             //遍历座位,如果有未签退的自动签退并计算学习时长
             if(!chair.getIsEmpty()) {
                 SignOutVo signOutVo = new SignOutVo(chair.getOpenId(), chair.getId());
-                ScheduledSpringTask.log.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-                ScheduledSpringTask.log.info("自动签退信息:{}", signOutVo);
-                ScheduledSpringTask.log.info("座位信息:{}", chair);
-                ScheduledSpringTask.log.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+                log.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+                log.info("自动签退信息:{}", signOutVo);
+                log.info("座位信息:{}", chair);
+                log.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
                 try {
                     chairsService.signOut(signOutVo);
                 } catch(Exception e) {
-                    ScheduledSpringTask.log.error("签退失败,原因:" + e.getMessage());
+                    log.error("签退失败,原因:" + e.getMessage());
                 }
             }
         }
-        ScheduledSpringTask.log.info("青蒜签到时间成功!");
     }
 
     @Scheduled(cron = "0 0 0 * * ? ")
     public void updateYesterdayRanking() throws InterruptedException {
-        ScheduledSpringTask.log.info("计算昨日学习排行榜定时任务开启....");
+        log.info("计算昨日学习排行榜定时任务开启....");
         yesterdayRecordService.generateYesterdayRanking();
     }
 
-    //TODO 每个月清除上个月签到记录 也可以不要再看吧
-    //TODO 每个天清除签到记录
-
+    //TODO 每个月清除上个月签到记录 也可以不要 再看吧
+    //TODO 每天清除签到记录
 }

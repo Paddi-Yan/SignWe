@@ -1,11 +1,8 @@
 package com.turing.controller;
 
 
-import com.turing.common.HttpStatusCode;
 import com.turing.common.Result;
-import com.turing.entity.User;
 import com.turing.service.RecordService;
-import com.turing.service.UserService;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,14 +23,20 @@ public class RecordController {
     @Resource
     private RecordService recordService;
 
-    @Resource
-    private UserService userService;
-
     @ResponseBody
     @GetMapping("/getByUserId/{id}")
     @ApiOperation("获取本赛季打卡记录")
     public Result getByUserId(@PathVariable String id) {
         return Result.success(recordService.getRecordByUser(id));
+    }
+
+    @ResponseBody
+    @GetMapping("/getByScroll")
+    @ApiOperation(value = "滚动分页获取本赛季打卡记录", notes = "第一次获取max和offset均为默认值,滚动翻页需要带上第一次返回值中的max和offset")
+    public Result getByScroll(@RequestParam(value = "max", defaultValue = "0") Long max,
+                              @RequestParam String userId,
+                              @RequestParam(value = "offset", defaultValue = "0") Long offset) {
+        return Result.success(recordService.getByScrollWithUserId(userId, max, offset));
     }
 }
 

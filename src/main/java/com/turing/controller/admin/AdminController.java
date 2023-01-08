@@ -83,4 +83,11 @@ public class AdminController {
         return Result.success("6");
     }
 
+    @ResponseBody
+    @GetMapping("searchUser")
+    @ApiOperation("根据名称获取用户信息")
+    public Result searchUser(@RequestParam String username) {
+        return Result.success(userService.getByName(username));
+    }
+    
 }

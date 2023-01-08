@@ -12,6 +12,7 @@ import com.turing.mapper.NoticeMapper;
 import com.turing.service.NoticeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.concurrent.TimeUnit;
 
@@ -41,6 +42,7 @@ public class NoticeServiceImpl extends ServiceImpl<NoticeMapper, Notice> impleme
             firstCache = @FirstCache(initialCapacity = 1, maximumSize = 10, expireTime = 7, timeUnit = TimeUnit.DAYS),
             secondaryCache = @SecondaryCache(expireTime = 7, timeUnit = TimeUnit.DAYS, forceRefresh = true))
     @Override
+    @Transactional
     public Notice updateNotice(Notice notice, String id) {
         noticeMapper.updateNotice(notice);
         Notice newNotice = noticeMapper.selectOne(null);

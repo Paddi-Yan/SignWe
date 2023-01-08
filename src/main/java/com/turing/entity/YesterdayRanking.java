@@ -1,11 +1,11 @@
 package com.turing.entity;
 
+import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-
-import java.io.Serializable;
-
 import io.swagger.annotations.ApiModel;
 import lombok.*;
+
+import java.io.Serializable;
 
 /**
  * <p>
@@ -28,6 +28,7 @@ public class YesterdayRanking implements Serializable {
 
     private Integer studyTime;
 
+    @TableId
     private String username;
 
 

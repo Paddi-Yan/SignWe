@@ -9,6 +9,7 @@ import com.turing.mapper.DoorMapper;
 import com.turing.service.DoorService;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
@@ -47,6 +48,7 @@ public class DoorServiceImpl extends ServiceImpl<DoorMapper, Door> implements Do
     @CachePut(cacheNames = RedisKey.DOOR_KEY, key = "#door.id", depict = "开门状态缓存信息", cacheMode = CacheMode.ALL,
             firstCache = @FirstCache(initialCapacity = 1, maximumSize = 1, expireTime = 15, timeUnit = TimeUnit.HOURS),
             secondaryCache = @SecondaryCache(expireTime = 15, timeUnit = TimeUnit.HOURS, forceRefresh = true))
+    @Transactional
     public Door openDoor(Door door, String username) {
         door.setOpen(true);
         door.setOpenInfo(username);
@@ -57,6 +59,7 @@ public class DoorServiceImpl extends ServiceImpl<DoorMapper, Door> implements Do
 
     @Override
     @CacheEvict(cacheNames = RedisKey.DOOR_KEY, key = "#door.id")
+    @Transactional
     public Door closeDoor(Door door, String username) {
         door.setCloseInfo(username);
         door.setOpen(false);

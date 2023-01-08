@@ -11,7 +11,6 @@ public class RedisKey {
 
     public static final String RANKING_HASH_KEY = KEY_PREFIX + "ranking_hash";
     public static final String RANKING_FIELD_KEY = KEY_PREFIX + "ranking_user_id_";
-
     public static final String RANKING_ZSET_KEY = KEY_PREFIX + "ranking_zset";
 
     public static final String TOTAL_RANKING_KEY = KEY_PREFIX + "ranking";

@@ -4,8 +4,13 @@
 
     <!-- 通用查询映射结果 -->
     <resultMap id="BaseResultMap" type="com.turing.entity.YesterdayRanking">
+        <id column="username" property="username"/>
         <result column="study_time" property="studyTime"/>
-        <result column="username" property="username"/>
     </resultMap>
 
+    <select id="getRanking" resultMap="BaseResultMap">
+        select *
+        from sys_yesterday_ranking
+        order by study_time DESC limit 5;
+    </select>
 </mapper>
