@@ -2,7 +2,7 @@
 广东海洋大学图灵创新创业团队签到小程序<br/>
 原提供服务接口是用微信小程序云函数编写，该项目是对后端的重构，使用了Java语言编写。<br/>
 微信搜索SignWe即可体验<br/>
-涉及的技术栈有SpringBoot+MyBatisPlus+MySQL+Redis。<br/>
+涉及的技术栈有SpringBoot+MyBatisPlus+MySQL+Redis+Caffeine+Docker。<br/>
 ### 功能列表
 #### 用户
 - 查看座位情况、开门状态以及可以订阅开门通知
