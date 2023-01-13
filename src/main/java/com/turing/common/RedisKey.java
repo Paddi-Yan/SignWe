@@ -34,5 +34,5 @@ public class RedisKey {
 
     public static final String DAY_STATISTICS_KEY = KEY_PREFIX + "statistics:" + "day:";
 
-    public static final String MONTH_STATISTICS_KEY = KEY_PREFIX + "statistics:" + "month:" + "userId:";
+    public static final String MONTH_STATISTICS_KEY = KEY_PREFIX + "statistics:";
 }

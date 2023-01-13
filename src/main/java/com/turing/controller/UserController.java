@@ -6,11 +6,11 @@ import com.turing.common.Result;
 import com.turing.entity.User;
 import com.turing.entity.dto.UserDto;
 import com.turing.entity.vo.RegisterVo;
+import com.turing.service.SignStatisticsService;
 import com.turing.service.UserService;
 import io.swagger.annotations.ApiOperation;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import javax.annotation.Resource;
 
 /**
  * <p>
@@ -22,11 +22,12 @@ import javax.annotation.Resource;
  */
 @RestController
 @RequestMapping("/user")
+@RequiredArgsConstructor
 public class UserController {
 
-    @Resource
-    private UserService userService;
 
+    private final UserService userService;
+    private final SignStatisticsService signStatisticsService;
 
     @PostMapping("/checkUser")
     @ResponseBody
@@ -51,6 +52,13 @@ public class UserController {
         user = userService.register(registerVo);
         userDto.transform(user);
         return Result.success(userDto);
+    }
+
+    @GetMapping("/getSignStatistics/{userId}")
+    @ApiOperation(value = "获取签到统计信息")
+    @ResponseBody
+    public Result getSignStatistics(@PathVariable String userId) {
+        return Result.success(signStatisticsService.getSignStatistics(userId));
     }
 }
 
