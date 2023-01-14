@@ -31,7 +31,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.stream.Collectors;
 
 import static com.turing.common.RedisKey.TURING_TEAM;
 
@@ -68,7 +67,7 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
                 Map entries = redisTemplate.opsForHash().entries(key);
                 Chairs chairs = BeanUtil.mapToBean(entries, Chairs.class, false);
                 chairsList.add(chairs);
-            }, cacheThreadPool)).collect(Collectors.toList()).toArray(new CompletableFuture[0])).join();
+            }, cacheThreadPool)).toArray(CompletableFuture[] :: new)).join();
             if(CollectionUtil.isNotEmpty(chairsList)) {
                 chairsList.sort(Comparator.comparingInt(Chairs :: getId));
                 return chairsList;
@@ -189,7 +188,7 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
         log.info("签到信息: {}", chair);
         return chair;
     }
-    
+
     @Override
     @RedisLock(lockName = "signOut", key = "#signOutVo.openid")
     public Chairs signOut(SignOutVo signOutVo) throws Exception {
@@ -224,8 +223,9 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
                 rankingService.updateRanking(user.getId(), user.getOpenid(), studyTime);
                 log.info("签退完毕:{}", chair);
             } catch(Exception e) {
-                log.error("用户[{}]签退失败:{}", user, chair);
+                log.error("用户[{}]签退失败:{}, 异常信息: {}", user, chair, e.getMessage());
                 status.setRollbackOnly();
+                throw new InternalServerException(ImmutableMap.of("cause", "签退失败"));
             }
             return Boolean.TRUE;
         });
@@ -234,12 +234,12 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
 
     private int updateChairStatus(User user, Chairs chair) {
         chair.setIsEmpty(true);
-        ChairsServiceImpl.log.info("签退前座位信息:" + chair);
+        log.info("签退前座位信息:" + chair);
         int resultOfSignOut = chairsMapper.updateById(chair);
 
         if(resultOfSignOut == 1) {
-            ChairsServiceImpl.log.info("用户[" + user.getClassname() + user.getName() + "]签退成功!");
-            ChairsServiceImpl.log.info("签退后座位信息:" + chair);
+            log.info("用户[" + user.getClassname() + user.getName() + "]签退成功!");
+            log.info("签退后座位信息:" + chair);
             redisTemplate.opsForHash()
                          .putAll(RedisKey.CHAIRS_HASH_KEY + chair.getId(), ImmutableMap.of("isEmpty", true, "version", chair.getVersion()));
             return resultOfSignOut;

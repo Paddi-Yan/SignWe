@@ -5,7 +5,7 @@
     <!-- 通用查询映射结果 -->
     <resultMap id="BaseResultMap" type="com.turing.entity.Ranking">
         <id column="id" property="id"/>
-        <result column="name" property="name"/>
+        <result column="total_time" property="totalTime"/>
         <result column="openid" property="openid"/>
     </resultMap>
 

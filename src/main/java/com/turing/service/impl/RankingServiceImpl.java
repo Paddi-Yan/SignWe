@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
@@ -68,9 +69,19 @@ public class RankingServiceImpl extends ServiceImpl<RankingMapper, Ranking> impl
         result = rankingMapper.getRanking();
         if(CollectionUtil.isNotEmpty(result)) {
             List<Ranking> finalResult = result;
+            CompletableFuture.allOf(result.stream().map(ranking -> CompletableFuture.runAsync(() -> {
+                String openid = ranking.getOpenid();
+                User user = userService.getByOpenId(openid);
+                ranking.setName(user.getName());
+                ranking.setFinalChair(user.getFinalChair());
+                ranking.setCount(user.getTodayCount());
+                ranking.setStatus(user.getStatus());
+                ranking.setOpenid(user.getOpenid());
+                ranking.setId(user.getId());
+            }, cacheThreadPool)).toArray(CompletableFuture[] :: new)).join();
             cacheThreadPool.execute(() -> {
                 HashSet<ZSetOperations.TypedTuple<String>> newTypedTuples = new HashSet<>(finalResult.size());
-                finalResult.stream().forEach(ranking -> {
+                finalResult.forEach(ranking -> {
                     DefaultTypedTuple<String> typedTuple = new DefaultTypedTuple<>(ranking.getOpenid(), Double.valueOf(ranking.getTotalTime()));
                     newTypedTuples.add(typedTuple);
                 });
@@ -99,8 +110,16 @@ public class RankingServiceImpl extends ServiceImpl<RankingMapper, Ranking> impl
     @Override
     public void updateRanking(String id, String openid, Integer studyTime) {
         Ranking ranking = getById(id);
-        ranking.setTotalTime(ranking.getTotalTime() + studyTime);
-        updateById(ranking);
+        if(ranking == null) {
+            ranking = new Ranking();
+            ranking.setId(id);
+            ranking.setOpenid(openid);
+            ranking.setTotalTime(studyTime);
+            save(ranking);
+        } else {
+            ranking.setTotalTime(ranking.getTotalTime() + studyTime);
+            updateById(ranking);
+        }
         redisTemplate.opsForZSet().incrementScore(RedisKey.TOTAL_RANKING_KEY, openid, studyTime);
     }
 }

@@ -12,6 +12,7 @@ import com.turing.entity.vo.RegisterVo;
 import com.turing.mapper.UserMapper;
 import com.turing.service.SignStatisticsService;
 import com.turing.service.UserService;
+import com.turing.utils.SpringBeanUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -36,7 +37,6 @@ import java.util.concurrent.TimeUnit;
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
 
     private final RedisTemplate redisTemplate;
-
     private final SignStatisticsService signStatisticsService;
     private static final int MAX_LENGTH = 28;
 
@@ -79,7 +79,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         user.setTodayTime(user.getTodayTime() + studyTime);
         user.setTodayCount(user.getTodayCount() + 1);
         user.setTotalTime(user.getTotalTime() + studyTime);
-        update(user);
+        UserServiceImpl service = SpringBeanUtils.getBean(UserServiceImpl.class);
+        service.update(user);
         signStatisticsService.count(user.getId());
     }
 

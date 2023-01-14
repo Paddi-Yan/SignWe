@@ -1,6 +1,7 @@
 package com.turing.entity;
 
 import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
@@ -26,6 +27,7 @@ import java.io.Serializable;
 public class Ranking implements Serializable {
 
     private static final long serialVersionUID = 103006776489737493L;
+    @TableField(exist = false)
     private String name;
 
     @TableField(exist = false)
@@ -36,7 +38,6 @@ public class Ranking implements Serializable {
     private Integer count;
 
     @ApiModelProperty("总时长")
-    @TableField(exist = false)
     private Integer totalTime;
 
     @ApiModelProperty("学习状态")
@@ -44,6 +45,7 @@ public class Ranking implements Serializable {
     private Boolean status;
 
     @ApiModelProperty("用户编号")
+    @TableId
     private String id;
 
     @ApiModelProperty("用户openid")
