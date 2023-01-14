@@ -55,7 +55,7 @@ public class UserController {
     }
 
     @GetMapping("/getSignStatistics/{userId}")
-    @ApiOperation(value = "获取签到统计信息")
+    @ApiOperation(value = "获取本月签到统计信息", notes = "keepSignInDays为本月连续签到天数")
     @ResponseBody
     public Result getSignStatistics(@PathVariable String userId) {
         return Result.success(signStatisticsService.getSignStatistics(userId));

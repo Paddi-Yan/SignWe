@@ -1,11 +1,13 @@
 package com.turing.controller.admin;
 
+import com.google.common.collect.ImmutableMap;
 import com.turing.common.RedisKey;
 import com.turing.common.Result;
 import com.turing.entity.Notice;
 import com.turing.entity.User;
 import com.turing.entity.vo.SignOutVo;
 import com.turing.exception.AuthenticationException;
+import com.turing.exception.RequestParamValidationException;
 import com.turing.service.*;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +36,7 @@ public class AdminController {
 
     private void checkAdmin(String openId) {
         User user = userService.getByOpenId(openId);
-        if(user == null || user.getAdmin().booleanValue() == false) {
+        if(user == null || !user.getAdmin()) {
             throw new AuthenticationException();
         }
     }
@@ -55,8 +57,7 @@ public class AdminController {
         checkAdmin(openid);
         return Result.success(noticeService.updateNotice(notice, RedisKey.TURING_TEAM));
     }
-
-
+    
     @ResponseBody
     @PostMapping("/resetRanking")
     @ApiOperation("重置排名")
@@ -84,10 +85,26 @@ public class AdminController {
     }
 
     @ResponseBody
-    @GetMapping("searchUser")
+    @GetMapping("/searchUser")
     @ApiOperation("根据名称获取用户信息")
     public Result searchUser(@RequestParam String username) {
         return Result.success(userService.getByName(username));
     }
-    
+
+    @ResponseBody
+    @PostMapping
+    @ApiOperation("/addAdmin")
+    public Result addAdmin(@RequestParam String adminOpenId, @RequestParam String userOpenId) {
+        checkAdmin(adminOpenId);
+        User user = userService.getByOpenId(userOpenId);
+        if(user == null) {
+            throw new RequestParamValidationException(ImmutableMap.of("cause", "用户不存在"));
+        }
+        if(user.getAdmin()) {
+            throw new RequestParamValidationException(ImmutableMap.of("cause", "用户已经是管理员"));
+        }
+        user.setAdmin(true);
+        userService.update(user);
+        return Result.success(user);
+    }
 }

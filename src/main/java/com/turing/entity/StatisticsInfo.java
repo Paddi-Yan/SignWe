@@ -20,4 +20,6 @@ public class StatisticsInfo implements Serializable {
     private String userId;
 
     private Integer keepSignInDays;
+
+    private Integer totalSignInDays;
 }

@@ -47,8 +47,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if(openid.length() > MAX_LENGTH && openid.startsWith("\"") && openid.endsWith("\"")) {
             openid = openid.replaceAll("\"", "");
         }
-        User user = baseMapper.selectOne(new LambdaQueryWrapper<User>().eq(User :: getOpenid, openid));
-        return user;
+        return baseMapper.selectOne(new LambdaQueryWrapper<User>().eq(User :: getOpenid, openid));
     }
 
     @Override

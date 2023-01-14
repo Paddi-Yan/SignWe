@@ -108,8 +108,7 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
             });
             return chair;
         }
-        Chairs chair = BeanUtil.mapToBean(entries, Chairs.class, false);
-        return chair;
+        return BeanUtil.mapToBean(entries, Chairs.class, false);
     }
 
     @Override
@@ -190,8 +189,7 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
         log.info("签到信息: {}", chair);
         return chair;
     }
-
-
+    
     @Override
     @RedisLock(lockName = "signOut", key = "#signOutVo.openid")
     public Chairs signOut(SignOutVo signOutVo) throws Exception {

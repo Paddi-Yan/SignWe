@@ -12,4 +12,8 @@ public interface SignStatisticsService {
     void count(String userId);
 
     StatisticsInfo getSignStatistics(String userId);
+
+    void deleteYesterdayStatistics();
+
+    void deleteLastMonthStatistics();
 }

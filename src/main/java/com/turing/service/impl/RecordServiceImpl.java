@@ -132,7 +132,7 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
         recordMapper.delete(null);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public void insertRecord(Chairs chair,
                              User user,

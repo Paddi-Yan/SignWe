@@ -6,6 +6,7 @@ import com.turing.entity.vo.SignOutVo;
 import com.turing.mapper.DoorMapper;
 import com.turing.service.ChairsService;
 import com.turing.service.DoorService;
+import com.turing.service.SignStatisticsService;
 import com.turing.service.YesterdayRankingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -40,6 +41,9 @@ public class ScheduledSpringTask {
 
     @Resource
     private YesterdayRankingService yesterdayRecordService;
+
+    @Resource
+    private SignStatisticsService signStatisticsService;
 
     private static final String ID = "TuringTeam";
 
@@ -85,10 +89,12 @@ public class ScheduledSpringTask {
 
     @Scheduled(cron = "0 0 0 * * ? ")
     public void updateYesterdayRanking() throws InterruptedException {
-        log.info("计算昨日学习排行榜定时任务开启....");
         yesterdayRecordService.generateYesterdayRanking();
+        signStatisticsService.deleteYesterdayStatistics();
     }
 
-    //TODO 每个月清除上个月签到记录 也可以不要 再看吧
-    //TODO 每天清除签到记录
+    @Scheduled(cron = "0 0 0 1 * ?")
+    public void deleteLastMonthStatistics() {
+        signStatisticsService.deleteLastMonthStatistics();
+    }
 }
