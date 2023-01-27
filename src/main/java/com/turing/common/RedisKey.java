@@ -25,6 +25,7 @@ public class RedisKey {
 
     public static final String CHAIRS_HASH_KEY = KEY_PREFIX + "chairs:";
     public static final String CHAIRS_FIELD_KEY = "id:";
+    public static final String CHAIRS_BLOOM_KEY = KEY_PREFIX + "bloom:" + "chairs";
 
     public static final String REDISSON_LOCK_PREFIX = KEY_PREFIX + "lock:";
 

@@ -3,19 +3,10 @@ package com.turing.signwe;
 import com.baomidou.mybatisplus.core.assist.ISqlRunner;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.turing.common.RedisKey;
-import com.turing.entity.Chairs;
-import com.turing.entity.Record;
-import com.turing.entity.User;
-import com.turing.entity.YesterdayRanking;
-import com.turing.mapper.ChairsMapper;
-import com.turing.mapper.RecordMapper;
-import com.turing.mapper.UserMapper;
-import com.turing.mapper.YesterdayRankingMapper;
-import com.turing.service.ChairsService;
-import com.turing.service.RecordService;
-import com.turing.service.UserService;
-import com.turing.service.YesterdayRankingService;
-import io.swagger.models.auth.In;
+import com.turing.entity.*;
+import com.turing.mapper.*;
+import com.turing.service.*;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataAccessException;
@@ -125,6 +116,15 @@ class SignWeApplicationTests {
                 return redisOperations.exec();
             }
         });
+    }
+
+    @Resource
+    private SignStatisticsService signStatisticsService;
+
+    @Test
+    void signStatTest() {
+        StatisticsInfo info = signStatisticsService.getSignStatistics("f92bdaa0f59924cd917df0c3d835df8f");
+        System.out.println(info);
     }
 
     @Resource

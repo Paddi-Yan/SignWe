@@ -1,6 +1,7 @@
 package com.turing.aspect;
 
 import cn.hutool.core.util.StrUtil;
+import com.google.common.collect.ImmutableMap;
 import com.turing.anotation.RedisLock;
 import com.turing.exception.RequestParamValidationException;
 import com.turing.utils.SpringELUtil;
@@ -39,15 +40,13 @@ public class RedisLockAspect {
         RLock lock = redissonClient.getLock(lockKey);
         boolean isLock = lock.tryLock();
         if(!isLock) {
-            throw new RequestParamValidationException();
+            throw new RequestParamValidationException(ImmutableMap.of("cause", "请勿频繁重复操作"));
         }
         log.info("加锁: {}", lockKey);
         Object result = null;
         try {
             result = point.proceed();
             return result;
-        } catch(Exception e) {
-            throw e;
         } finally {
             lock.unlock();
         }

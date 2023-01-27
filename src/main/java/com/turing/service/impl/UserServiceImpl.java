@@ -39,7 +39,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     private final RedisTemplate redisTemplate;
     private final SignStatisticsService signStatisticsService;
     private static final int MAX_LENGTH = 28;
-
+    
     @Override
     @Cacheable(cacheNames = RedisKey.USER_KEY, key = "#openid", depict = "用户缓存", cacheMode = CacheMode.SECOND,
             secondaryCache = @SecondaryCache(expireTime = 60 * 3, preloadTime = 20, timeUnit = TimeUnit.MINUTES, forceRefresh = true, magnification = 200))

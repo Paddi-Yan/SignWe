@@ -20,6 +20,7 @@ import com.turing.mapper.UserMapper;
 import com.turing.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RBloomFilter;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
@@ -58,6 +59,8 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
     private final ExecutorService cacheThreadPool;
     private final ThreadPoolTaskExecutor commonThreadPool;
 
+    private final BloomFilterService<Integer> bloomFilterService;
+
     @Override
     public List<Chairs> getChairsList() {
         Set<String> keys = redisTemplate.keys(RedisKey.CHAIRS_HASH_KEY + "*");
@@ -77,10 +80,12 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
         if(CollectionUtil.isEmpty(chairs)) {
             return Collections.emptyList();
         }
+        RBloomFilter<Integer> bloomFilter = bloomFilterService.get(RedisKey.CHAIRS_BLOOM_KEY);
         cacheThreadPool.execute(() -> chairs.forEach(chair -> {
             log.info("重建缓存:{}", chair);
             Map<String, Object> entry = BeanUtil.beanToMap(chair, new HashMap<>(), false, false);
             redisTemplate.opsForHash().putAll(RedisKey.CHAIRS_HASH_KEY + chair.getId(), entry);
+            bloomFilter.add(chair.getId());
         }));
         return chairs;
     }
@@ -88,6 +93,10 @@ public class ChairsServiceImpl extends ServiceImpl<ChairsMapper, Chairs> impleme
 
     @Override
     public Chairs getById(Integer id) {
+        RBloomFilter<Integer> bloomFilter = bloomFilterService.get(RedisKey.CHAIRS_BLOOM_KEY);
+        if(!bloomFilter.contains(id)) {
+            throw new RequestParamValidationException(ImmutableMap.of("cause", "编号为" + id + "座位不存在"));
+        }
         Map entries = redisTemplate.opsForHash().entries(RedisKey.CHAIRS_HASH_KEY + id);
         if(MapUtil.isEmpty(entries)) {
             Chairs chair = baseMapper.selectById(id);

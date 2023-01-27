@@ -84,10 +84,10 @@ public class RecordServiceImpl extends ServiceImpl<RecordMapper, Record> impleme
     public List<Record> getYesterdaySignedRecordList() {
         List<Record> recordList = new ArrayList<>();
         LocalDateTime yesterdayTime = LocalDateTime.now().minusDays(1);
-        String todaySignMemberKey = RedisKey.DAY_STATISTICS_KEY + yesterdayTime.format(DateTimeFormatter.ofPattern(":yyyy/MM/DD"));
+        String todaySignMemberKey = RedisKey.DAY_STATISTICS_KEY + yesterdayTime.format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
         log.info("今日签到用户集合Key：{}", todaySignMemberKey);
         Set<String> todaySignMemberIds = redisTemplate.opsForSet().members(todaySignMemberKey);
-        if(todaySignMemberIds == null || todaySignMemberIds.isEmpty()) {
+        if(CollectionUtil.isEmpty(todaySignMemberIds)) {
             return Collections.emptyList();
         }
         for(String userId : todaySignMemberIds) {
