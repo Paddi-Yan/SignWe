@@ -3,6 +3,7 @@ package com.turing.entity;
 import lombok.*;
 
 import java.io.Serializable;
+import java.util.Map;
 
 /**
  * @Author: Paddi-Yan
@@ -22,4 +23,6 @@ public class StatisticsInfo implements Serializable {
     private Integer keepSignInDays;
 
     private Integer totalSignInDays;
+
+    private Map<String, Boolean> signCalendar;
 }

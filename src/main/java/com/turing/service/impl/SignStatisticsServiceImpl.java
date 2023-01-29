@@ -12,14 +12,18 @@ import com.turing.service.SignStatisticsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.connection.BitFieldSubCommands;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import java.io.Serializable;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -82,16 +86,17 @@ public class SignStatisticsServiceImpl implements SignStatisticsService {
             statisticsInfo.setKeepSignInDays(0);
             return statisticsInfo;
         }
-        Long num = result.get(0);
-        //获取连续签到天数
-        CompletableFuture<Integer> querySignInDaysFuture = CompletableFuture.supplyAsync(() -> getSignInDays(num), commonThreadPool);
         Long signBit = result.get(0);
+        //获取连续签到天数
+        CompletableFuture<Integer> querySignInDaysFuture = CompletableFuture.supplyAsync(() -> getSignInDays(signBit), commonThreadPool);
         //获取本月签到天数
-        CompletableFuture<Integer> queryTotalSignInDays = CompletableFuture.supplyAsync(() -> getTotalSignDays(signBit), commonThreadPool);
-        CompletableFuture.allOf(querySignInDaysFuture, queryTotalSignInDays).join();
-
+        CompletableFuture<Integer> queryTotalSignInDaysFuture = CompletableFuture.supplyAsync(() -> getTotalSignDays(key), commonThreadPool);
+        //获取签到日历
+        CompletableFuture<Map<String, Boolean>> queryCalendarFuture = CompletableFuture.supplyAsync(() -> getSignCalendar(signBit), commonThreadPool);
+        CompletableFuture.allOf(querySignInDaysFuture, queryTotalSignInDaysFuture, queryCalendarFuture).join();
         statisticsInfo.setKeepSignInDays(querySignInDaysFuture.join());
-        statisticsInfo.setTotalSignInDays(queryTotalSignInDays.join());
+        statisticsInfo.setTotalSignInDays(queryTotalSignInDaysFuture.join());
+        statisticsInfo.setSignCalendar(queryCalendarFuture.join());
         return statisticsInfo;
     }
 
@@ -102,6 +107,24 @@ public class SignStatisticsServiceImpl implements SignStatisticsService {
             days++;
         }
         return days;
+    }
+
+    private Map<String, Boolean> getSignCalendar(Long signBit) {
+        LocalDate date = LocalDate.now();
+        Map<String, Boolean> signMap = new LinkedHashMap<>(date.getDayOfMonth());
+        Long num = signBit;
+        for(int i = date.getDayOfMonth(); i > 0; i--) {
+            LocalDate d = date.withDayOfMonth(i);
+            signMap.put(d.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")), num >> 1 << 1 != num);
+            num >>= 1;
+        }
+        
+        return signMap;
+    }
+
+    private int getTotalSignDays(String key) {
+        Long result = redisTemplate.execute((RedisCallback<Long>) con -> con.bitCount(key.getBytes()));
+        return result == null ? 0 : result.intValue();
     }
 
     @Override
@@ -121,7 +144,8 @@ public class SignStatisticsServiceImpl implements SignStatisticsService {
         }
     }
 
-    private Integer getSignInDays(Long num) {
+    private Integer getSignInDays(Long signBit) {
+        Long num = signBit;
         int keepSignInDays = 0;
         while((num & 1) != 0) {
             keepSignInDays++;
